@@ -11,6 +11,7 @@ Let's implement distrobuted sorting!
 * Set up Github repository.
 <details>
 <summary> Milestones for next weeks </summary>
+
 ### Week 2
 ### Week 3
 ### Week 4
@@ -18,6 +19,7 @@ Let's implement distrobuted sorting!
 ### Week 6
 ### Week 7
 ### Week 8
+
 </details>
 
 ## Weekly Progresses
@@ -25,6 +27,7 @@ Let's implement distrobuted sorting!
 * Made git repository.
 <details>
 <summary> Progresses for next weeks </summary>
+
 ### Week 2
 ### Week 3
 ### Week 4
@@ -32,4 +35,5 @@ Let's implement distrobuted sorting!
 ### Week 6
 ### Week 7
 ### Week 8
+
 </details>
