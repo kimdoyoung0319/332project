@@ -5,8 +5,8 @@ Let's implement distrobuted sorting!
 # Milestones
 * Learn about libraries such as gRPC, Protobuf, and Future class of Scala.
 * Plan overall design of the program
-+ - What classes, objects, functions, enums to introduce?
-+ - How master and worker machine communicate?
+  - What classes, objects, functions, enums to introduce?
+  - How master and worker machine communicate?
 
 # Weekly Progresses
 ## Week 1
