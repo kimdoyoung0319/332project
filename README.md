@@ -75,10 +75,36 @@ Let's implement distrobuted sorting!
   - Index file might be shared smong threads on a machine. How should we ensure consistency of this data structure?
   - How to exploit parallelism while merging locally?
 
+### Week 2
+- **Saturday Regular Meeting**
+  - Held a regular team meeting on Saturday to discuss progress and clarify next steps.
+
+- **Learned Concepts and Libraries**
+
+  - **1. In-depth Study of gRPC and Protobuf**
+    - **Service Definition**: Defined services and message structures in `.proto` files.
+    - **gRPC Streaming**: Utilized bidirectional streaming between the master and worker nodes.
+    - **Load Balancing**: Discussed how to distribute tasks efficiently when multiple workers are involved.
+    - **Error Handling**: Explored gRPC error codes and retry strategies to handle failures gracefully.
+
+  - **2. Scala's Future and Parallel Programming**
+    - **Future**: Wrote asynchronous code with callbacks to improve non-blocking execution.
+    - **Promise vs Future**: Investigated how `Promise` allows setting values at a specific point in time.
+    - **ExecutionContext Setup and Usage**: Optimized thread pools for efficient execution.
+    - **Concurrency Issue Resolution**: Applied lock-free mechanisms and used `synchronized` to ensure thread safety.
+
+  - **3. Theoretical Background of Distributed Sorting**
+    - **MapReduce Concept**: Studied the MapReduce framework for processing data in a distributed environment.
+    - **Parallel Sorting Algorithms**: Examined how to implement Merge Sort and Quick Sort in parallel.
+    - **Shuffling Optimization**: Optimized data redistribution among worker nodes to improve efficiency.
+
+- **Preparation for OS Project 2 Presentation**
+  - Good luck to everyone on their OS Project 2 presentations! 💪
+
+
 <details>
 <summary> Progresses for next weeks </summary>
 
-### Week 2
 ### Week 3
 ### Week 4
 ### Week 5
