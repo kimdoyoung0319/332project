@@ -1,3 +1,7 @@
 # Ignore all dotfiles except this .gitignore.
 .*
 !.gitignore
+
+# Ignore intermediate build directory produced by Sbt.
+project/
+target/
