@@ -165,7 +165,7 @@ Let's implement distrobuted sorting!
       - Sample Sorting Algorithm
         - Learn about the sample sorting method: [Samplesort on Wikipedia](https://en.wikipedia.org/wiki/Samplesort)
       - Scala Concurrent Programming Libraries
-        - Study how to use Scala's parallel programming libraries, `Future` and `Promise`: [Futures in Scala](https://docs.scala-lang.org/overviews/core/futures.html)
+        - Study how to use Scala's Concurrent programming libraries, `Future` and `Promise`: [Futures in Scala](https://docs.scala-lang.org/overviews/core/futures.html)
     - All Member: Cluster Access Permission
     - by **Doyoung**: Set up a Google Doc directory for tracking this week's progress.
 <details>
