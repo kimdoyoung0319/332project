@@ -4,15 +4,15 @@ Let's implement distrobuted sorting!
 
 ## Milestones
 
+<details>
+<summary> Milestones for previous weeks </summary>
+
 ### Week 1
 * Learn about libraries such as [gRPC](https://grpc.io/docs/languages/go/basics/), [Protobuf](https://protobuf.dev), and [Future class](https://docs.scala-lang.org/overviews/core/futures.html) of Scala.
 * Plan overall design of the program.
   - What classes, objects, functions, enums to introduce?
   - How should master and worker machine communicate?
 * Set up Git repository.
-
-<details>
-<summary> Milestones for next weeks </summary>
 
 ### Week 2
 * Keep studying on important notions and usages of libraries.
@@ -24,6 +24,8 @@ Let's implement distrobuted sorting!
 * Make out some of unit test cases based on the interface.
 * Survive on the midterm exam (Good Luck!).
 
+</details>
+
 ### Week 3
 * Collect some more ideas, if any.
 * Start to code - not necessarily.
@@ -31,6 +33,9 @@ Let's implement distrobuted sorting!
 * **Important**: Start difficult part early if we decided to start implementing.
   - This might be 'shuffle' part...
 * Make some more unit tests according to the design, revise them if it became old.
+
+<details>
+<summary> Milestones for next weeks </summary>
 
 ### Week 4
 * No matter how late we are, we should start implementing in this week. 
@@ -63,6 +68,10 @@ Let's implement distrobuted sorting!
 </details>
 
 ## Weekly Progresses
+
+<details>
+<summary> Progresses of previous weeks </summary>
+
 ### Week 1
 * Set Git repository up.
 * Done some of documenting, such as writing down milestones.
@@ -103,11 +112,13 @@ Let's implement distrobuted sorting!
 - **Preparation for OS Project 2 Presentation**
   - Good luck to everyone on their OS Project 2 presentations! 💪
 
+</details>
+
+### Week 3
 
 <details>
 <summary> Progresses for next weeks </summary>
 
-### Week 3
 ### Week 4
 ### Week 5
 ### Week 6
