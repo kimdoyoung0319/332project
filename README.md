@@ -72,6 +72,8 @@ Let's implement distrobuted sorting!
 * Planned to have regular meeting on Saturday.
 * Expected problems:
   - How to serve/receive records in parallel manner?
+    - Readers/Writers problem, Producer/Consumer problem...
+    - How can we model the problem as a well-known problem?
   - Index file might be shared smong threads on a machine. How should we ensure consistency of this data structure?
   - How to exploit parallelism while merging locally?
 
