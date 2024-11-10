@@ -24,8 +24,6 @@ Let's implement distrobuted sorting!
 * Make out some of unit test cases based on the interface.
 * Survive on the midterm exam (Good Luck!).
 
-</details>
-
 ### Week 3
 * Collect some more ideas, if any.
 * Milestone Specification
@@ -35,14 +33,16 @@ Let's implement distrobuted sorting!
   - This might be 'shuffle' part...
 * ~~Make some more unit tests according to the design, revise them if it became old.~~
 
-<details>
-<summary> Milestones for next weeks </summary>
+</details>
 
 ### Week 4
 * Study the required libraries for implementation and work on individual design components:   
   our team agrees with the premise of the Mythical Man-Month, deciding to allocate significant time to studying and planning, recognizing the importance of thorough preparation in avoiding inefficiencies during implementation.😵
 * Share individual design components, and explore better solutions for the project together.
 * Design and Implementation Plan Specification.
+
+<details>
+<summary> Milestones for next weeks </summary>
 
 ### Week 5
 * Keep implementing and coding...
@@ -114,8 +114,6 @@ Let's implement distrobuted sorting!
 - **Preparation for OS Project 2 Presentation**
   - Good luck to everyone on their OS Project 2 presentations! 💪
 
-</details>
-
 ### Week 3
 - **Saturday Regular Meeting**
   - **Commit Convention**
@@ -168,10 +166,35 @@ Let's implement distrobuted sorting!
         - Study how to use Scala's Concurrent programming libraries, `Future` and `Promise`: [Futures in Scala](https://docs.scala-lang.org/overviews/core/futures.html)
     - All Member: Cluster Access Permission
     - by **Doyoung**: Set up a Google Doc directory for tracking this week's progress.
+
+</details>
+
+### Week 4
+- [Meeting Minute of This Week](https://docs.google.com/document/d/1_xKZGVFijjB520F2Ul53MoYmUl4QtC2KAgsxgZ_nGt0/edit?usp=sharing)
+- Decided next week's meeting schedule to gather up and start to code.
+  - Thursday 9:30 PM, in GSR of school library.
+- Decided to make sample program before starting to implementing the actual one.
+  - Decided on the concrete interface of it.
+    - Two executables: `master` and `worker`
+    - `master` and `worker` shall work with same arguments of the actual 
+      program.
+      - i.e. `master` should be invoked like `master 5`, and `worker` should be
+        invoked like `worker -I foo -O bar`
+    - However, the operation of them are somewhat different.
+      - Instead of actual distrobuted sorting, master sends two random integers
+        to the workers, and workers perform random computations on it and send
+        it back.
+    - The master prints the IP address and port of itself, and prints the 
+      ordering of the workers, sorted by the values received.
+    - This will help us understand the concrete operation on gRPC and Protobuf,
+      and concurrency in Scala.
+- Decided whom to take responsibility of designing whole system, and whom to 
+  take responsibility of supporting him (by the surgical team model of *the 
+  Mythical Man Month*).
+
 <details>
 <summary> Progresses for next weeks </summary>
 
-### Week 4
 ### Week 5
 ### Week 6
 ### Week 7
