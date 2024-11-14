@@ -3,5 +3,7 @@
 !.gitignore
 
 # Ignore intermediate build directory produced by Sbt.
-project/
 target/
+
+# Ignore VSCode Metals plugin specific files.
+metals.sbt
