@@ -44,12 +44,14 @@ Let's implement distrobuted sorting!
 </details>
 
 ### Week 5
-* Keep implementing and coding...
-* How should we do integrated testing?
-* Discuss about problems we face while working on it.
+* Running and debugging implementation environment settings and test code
+* overall design plan (in progress)
+* How do I do the integration test?
+* Discuss the issues you faced during your work.
 
 <details>
 <summary> Milestones for next weeks </summary>
+  
 ### Week 6
 * **Prepare for presentation!**
 * If we have not completed the first implementation, do it.
