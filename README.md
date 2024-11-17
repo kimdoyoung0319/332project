@@ -33,7 +33,7 @@ Let's implement distrobuted sorting!
   - This might be 'shuffle' part...
 * ~~Make some more unit tests according to the design, revise them if it became old.~~
 
-</details>
+
 
 ### Week 4
 * Study the required libraries for implementation and work on individual design components:   
@@ -41,14 +41,15 @@ Let's implement distrobuted sorting!
 * Share individual design components, and explore better solutions for the project together.
 * Design and Implementation Plan Specification.
 
-<details>
-<summary> Milestones for next weeks </summary>
+</details>
 
 ### Week 5
 * Keep implementing and coding...
 * How should we do integrated testing?
 * Discuss about problems we face while working on it.
 
+<details>
+<summary> Milestones for next weeks </summary>
 ### Week 6
 * **Prepare for presentation!**
 * If we have not completed the first implementation, do it.
@@ -167,7 +168,7 @@ Let's implement distrobuted sorting!
     - All Member: Cluster Access Permission
     - by **Doyoung**: Set up a Google Doc directory for tracking this week's progress.
 
-</details>
+
 
 ### Week 4
 - [Meeting Minute of This Week](https://docs.google.com/document/d/1_xKZGVFijjB520F2Ul53MoYmUl4QtC2KAgsxgZ_nGt0/edit?usp=sharing)
@@ -192,10 +193,33 @@ Let's implement distrobuted sorting!
   take responsibility of supporting him (by the surgical team model of *the 
   Mythical Man Month*).
 
+</details>
+
+### Week 5
+- [Meeting Minute of This Week](https://docs.google.com/document/d/1RkFKvAxPYGVAnsNgUA4w1OFz7I9jFjmnB0VoF5iNqqQ/edit?usp=sharing)
+- Held a team meeting via Zoom on Saturday.
+
+#### Tasks Completed This Week
+- **IntelliJ SSH Connection and Deployment Setup**
+  - (Completed) Copied public keys to enable SSH key-based access to each Worker machine.
+- **Shell Script for Master to Manage Worker Machines**
+  - (Completed) Installed `gensort` on all Worker machines, generated test data, and verified outputs.
+- **Test Code for Master-Worker Communication**
+  - Successfully implemented and tested Request-Response communication between Master and Worker.
+- **Presentation Preparation**
+  - Assigned roles for preparing the presentation.
+  - Presenter : Doyoung Kim, Materials Prepared By : Duhong Kwon, SoonHo Kim
+
+#### Overall Design of the System
+- [Design Proposal](https://github.com/kimdoyoung0319/332project/blob/doyoung-example/design-proposal.md)
+- **Defined Phases and Protobuf Integration**
+  - Defined each phase required for the system and outlined Protobuf services and messages for each phase.
+  - In the Sample Phase, Worker machines sort data locally, access indices in strides, and send the sample list to the Master.
+  - Further discussions planned to refine the final design.
+
 <details>
 <summary> Progresses for next weeks </summary>
 
-### Week 5
 ### Week 6
 ### Week 7
 ### Week 8
