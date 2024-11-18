@@ -66,7 +66,9 @@ Let's implement distrobuted sorting!
 * Continue coding while commiting your code to your Git branch.
   - Implement the services defined in the proto file on the worker.
 * Create test cases to validate overall program.
-  - Samples excessively distributed in a specific partition
+  - Load Imbalance (uneven distribution of data)
+  - Network bottleneck
+  - Data consistency
 * Execute and debug the code.
 
 ### Week 8
