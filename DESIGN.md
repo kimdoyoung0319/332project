@@ -1,4 +1,4 @@
-Design Proposal
+Design Document for Distrobuted Sorting
 ---
 ## Terminologies and Definitions
 * **Record**: 
