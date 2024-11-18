@@ -54,21 +54,27 @@ Let's implement distrobuted sorting!
   
 ### Week 6
 * **Prepare for presentation!**
-* If we have not completed the first implementation, do it.
-* Start integrated testing.
-  - Soundness and completeness do matter.
-    * Is there any missing record?
-    * Is the ordering maintained on the final result?
-    * Is there any edge case that makes code buggy?
+* Add *details* to the finalized design.
+  - When too much data is concentrated in one partition.
+  - When disk overflow occurs on worker machines during shuffling.
+  - Defining services for communication between machines using a proto file.
+  - Shuffling algorithm
+* Distribute coding tasks based on the finalized design. (based on phases)
+* Coding!
 
 ### Week 7
-* Debug! 
-* I hope we've done initial implementing at this week...
-  - Anyway we have to if we haven't done yet.
+* Continue coding while commiting your code to your Git branch.
+  - Implement the services defined in the proto file on the worker.
+* Create test cases to validate overall program.
+  - Samples excessively distributed in a specific partition
+* Execute and debug the code.
 
 ### Week 8
 * Another debugging week.
+  - Identify edge cases to catch bugs.
 * Prepare for final presentation.
+  - Summarize our experience through storytelling
+  - Write final report
 
 </details>
 
