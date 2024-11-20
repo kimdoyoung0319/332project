@@ -61,19 +61,35 @@ Let's implement distrobuted sorting!
   - Shuffling algorithm
 * Distribute coding tasks based on the finalized design. (based on phases)
 * Coding!
+  - **overall phase**
+    1. Master can send phase service.   
+    2. Each worker can performs different tasks based on the phase flag.
 
 ### Week 7
 * Continue coding while commiting your code to your Git branch.
   - Implement the services defined in the proto file on the worker.
-* Create test cases to validate overall program.
-  - Load Imbalance (uneven distribution of data)
-  - Network bottleneck
-  - Data consistency
+  - sorting
+    1. A Worker can sort data in its disk. (Apache spark)
+    2. Workers can send sample data to the master.
+  - sampling
+    1. Master can sort data in its disk too. (Apache spark)
+    2. Master can distribute partitions.
+  - shuffling
+    1. Workers can connect workers
+       10 workers communicate each other.   
+       A worker server can receive 10 workers client (included itself) request.
+    2. Workers can detect capacity overload on their own disks.
+  - merging
+    1. Workers can merge multiple blocks into a single file while maintaining the order based on the keys.
 * Execute and debug the code.
 
 ### Week 8
 * Another debugging week.
   - Identify edge cases to catch bugs.
+* Create test cases to validate overall program.
+  - Load Imbalance (uneven distribution of data)
+  - Network bottleneck
+  - Data consistency
 * Prepare for final presentation.
   - Summarize our experience through storytelling
   - Write final report
