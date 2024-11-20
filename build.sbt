@@ -6,6 +6,11 @@ libraryDependencies += "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalap
 libraryDependencies += "io.grpc" % "grpc-stub" % scalapb.compiler.Version.grpcJavaVersion
 libraryDependencies += "io.grpc" % "grpc-protobuf" % scalapb.compiler.Version.grpcJavaVersion
 libraryDependencies += "io.grpc" % "grpc-netty" % scalapb.compiler.Version.grpcJavaVersion
+libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.19"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test"
+libraryDependencies += "com.lihaoyi" %% "os-lib" % "0.11.3"
+libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.10"
+libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4"
 
 lazy val root = (project in file("."))
   .settings(
