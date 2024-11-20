@@ -79,6 +79,7 @@ Let's implement distrobuted sorting!
        10 workers communicate each other.   
        A worker server can receive 10 workers client (included itself) request.
     2. Workers can detect capacity overload on their own disks.
+    3. handling capacity overload.
   - merging
     1. Workers can merge multiple blocks into a single file while maintaining the order based on the keys.
 * Execute and debug the code.
