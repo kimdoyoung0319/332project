@@ -68,19 +68,19 @@ Let's implement distrobuted sorting!
 ### Week 7
 * Continue coding while commiting your code to your Git branch.
   - Implement the services defined in the proto file on the worker.
-  - sorting
+  - **sorting phase:**
     1. A Worker can sort data in its disk. (Apache spark or DIY)
     2. Workers can send sample data to the master.
-  - sampling
+  - **sampling phase:**
     1. Master can sort data in its disk too. (Apache spark or DIY)
     2. Master can distribute partitions.
-  - shuffling
+  - **shuffling phase:**
     1. Workers can connect workers
        10 workers communicate each other.   
        A worker server can receive 10 workers client (included itself) request.
     2. Workers can detect capacity overload on their own disks.
     3. handling capacity overload.
-  - merging
+  - **merging phase:**
     1. Workers can merge multiple blocks into a single file while maintaining the order based on the keys.
 * Execute and debug the code.
 
