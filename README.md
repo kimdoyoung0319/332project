@@ -237,7 +237,7 @@ Let's implement distrobuted sorting!
   - Presenter : Doyoung Kim, Materials Prepared By : Duhong Kwon, SoonHo Kim
 
 #### Overall Design of the System
-- [Design Proposal](https://github.com/kimdoyoung0319/332project/blob/doyoung-example/design-proposal.md)
+- [Design Proposal](https://github.com/kimdoyoung0319/332project/blob/doyoung/DESIGN.md)
 - **Defined Phases and Protobuf Integration**
   - Defined each phase required for the system and outlined Protobuf services and messages for each phase.
   - In the Sample Phase, Worker machines sort data locally, access indices in strides, and send the sample list to the Master.
