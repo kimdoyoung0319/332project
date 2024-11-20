@@ -7,3 +7,7 @@ target/
 
 # Ignore VSCode Metals plugin specific files.
 metals.sbt
+
+# Ignore log and binary file directory.
+log/
+bin/
