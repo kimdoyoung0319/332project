@@ -69,10 +69,10 @@ Let's implement distrobuted sorting!
 * Continue coding while commiting your code to your Git branch.
   - Implement the services defined in the proto file on the worker.
   - sorting
-    1. A Worker can sort data in its disk. (Apache spark)
+    1. A Worker can sort data in its disk. (Apache spark or DIY)
     2. Workers can send sample data to the master.
   - sampling
-    1. Master can sort data in its disk too. (Apache spark)
+    1. Master can sort data in its disk too. (Apache spark or DIY)
     2. Master can distribute partitions.
   - shuffling
     1. Workers can connect workers
