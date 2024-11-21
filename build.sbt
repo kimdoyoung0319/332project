@@ -13,6 +13,8 @@ ThisBuild / libraryDependencies := Seq(
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4"
 )
 
+ThisBuild / scalacOptions += "-deprecation"
+
 lazy val root = (project in file("."))
   .dependsOn(common, master, worker)
   .settings(name := "distrobuted-sorting")
@@ -51,9 +53,3 @@ lazy val worker = (project in file("worker"))
       case _ => MergeStrategy.first
     }
   )
-
-addCommandAlias("runMaster", """runMain master.Main 1""")
-addCommandAlias(
-  "runWorker",
-  """runMain worker.Main 172.17.0.2:36673 -I input -O output"""
-)
