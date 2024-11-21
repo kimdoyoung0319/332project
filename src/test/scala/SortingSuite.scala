@@ -13,7 +13,7 @@ object Gensort {
   require(os.exists(gensort))
 
   def makeBinary(n: Int): Path = {
-    val file = temp / s"temp.${count}"
+    val file = temp / s"temp.$count"
     val cmd = (gensort, n, file)
 
     os.call(cmd = cmd, check = false).exitCode match {
@@ -23,7 +23,7 @@ object Gensort {
   }
 
   def makeAscii(n: Int): Path = {
-    val file = temp / s"temp.${count}"
+    val file = temp / s"temp.$count"
     val cmd = (gensort, "-a", n, file)
 
     os.call(cmd = cmd, check = false).exitCode match {
@@ -58,6 +58,13 @@ class SortingSuite extends AnyFunSuite {
     for (line <- Block(path).read()) logger.debug(line)
     logger.debug("--------------------------------")
   }
+
+  test(
+    """
+    This test suite requires gensort and valsort executables to be in bin/ 
+    directory. Compile and put them if they aren't.
+    """
+  ) {}
 
   test("A block storing single record must be already sorted.") {
     val test = Gensort.makeBinary(1)
