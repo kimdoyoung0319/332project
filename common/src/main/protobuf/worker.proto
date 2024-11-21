@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package proto;
+
+import "common.proto";
+
+service Worker {
+  rpc Sample(Empty) returns (SampleResponse) {}
+}
+
+message SampleResponse {
+  repeated Record samples = 1;
+}

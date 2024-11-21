@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package proto;
+
+import "common.proto";
+
+service Master {
+  rpc Register(RegisterRequest) returns (Empty);
+}
+
+message RegisterRequest {
+  string address = 1;
+  uint32 port = 2;
+}
+
