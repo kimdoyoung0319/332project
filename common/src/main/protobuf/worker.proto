@@ -4,7 +4,7 @@ package proto;
 
 import "common.proto";
 
-service Worker {
+service WorkerService {
   rpc Sample(Empty) returns (SampleResponse) {}
 }
 

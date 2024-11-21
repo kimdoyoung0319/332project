@@ -4,12 +4,12 @@ package proto;
 
 import "common.proto";
 
-service Master {
+service MasterService {
   rpc Register(RegisterRequest) returns (Empty);
 }
 
 message RegisterRequest {
-  string address = 1;
+  string ip = 1;
   uint32 port = 2;
 }
 
