@@ -1,3 +1,4 @@
+/* TODO: Clean up global namespace of this module. */
 import com.typesafe.scalalogging.Logger
 import org.scalatest.funsuite.AnyFunSuite
 import common.{Block, Record}
@@ -50,13 +51,15 @@ object Valsort {
 }
 
 class SortingSuite extends AnyFunSuite {
-  val logger = Logger("Test")
+  val logger = Logger("root")
 
-  def logRecords(path: Path, msg: String): Unit = {
+  def logRecordsWithPath(path: Path, msg: String): Unit = {
     assert(os.exists(path))
-    logger.debug(s"Contents of ${path.toString}, ${msg}.")
-    for (line <- Block(path).read()) logger.debug(line)
-    logger.debug("--------------------------------")
+    utils.logRecords(
+      logger,
+      Block(path).load().toSeq,
+      s"Contents of ${path.toString}, ${msg}."
+    )
   }
 
   test(
@@ -68,29 +71,29 @@ class SortingSuite extends AnyFunSuite {
 
   test("A block storing single record must be already sorted.") {
     val test = Gensort.makeBinary(1)
-    logRecords(test, "single block with 1 record")
+    logRecordsWithPath(test, "single block with 1 record")
     assert(Valsort.validate(test))
   }
 
   test("A block storing a hundred of records may not have been sorted.") {
     val test = Gensort.makeBinary(100)
-    logRecords(test, "block with hundred of records")
+    logRecordsWithPath(test, "block with hundred of records")
     assert(!Valsort.validate(test))
   }
 
   test("A single ASCII block should be sorted properly.") {
     val test = Gensort.makeAscii(5)
-    logRecords(test, "unsorted ASCII block")
+    logRecordsWithPath(test, "unsorted ASCII block")
     val sorted = Block(test).sorted()
-    logRecords(sorted.path, "sorted ASCII block")
+    logRecordsWithPath(sorted.path, "sorted ASCII block")
     assert(Valsort.validate(sorted.path))
   }
 
   test("A single binary block should be sorted properly.") {
     val test = Gensort.makeBinary(5)
-    logRecords(test, "unsorted binary block")
+    logRecordsWithPath(test, "unsorted binary block")
     val sorted = Block(test).sorted()
-    logRecords(sorted.path, "sorted binary block")
+    logRecordsWithPath(sorted.path, "sorted binary block")
     assert(Valsort.validate(sorted.path))
   }
 }

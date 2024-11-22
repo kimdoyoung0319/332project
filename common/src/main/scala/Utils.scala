@@ -1,3 +1,4 @@
+import com.typesafe.scalalogging.Logger
 package object utils {
   /* IP address of this machine. Convenient for retreiving address in
      shorthand. */
@@ -23,7 +24,8 @@ package object utils {
   def makeStub[T](ip: String, port: Int)(
       createStubWith: io.grpc.ManagedChannel => T
   ): T = {
-    val channel = io.grpc.ManagedChannelBuilder.forAddress(ip, port).build
+    val channel =
+      io.grpc.ManagedChannelBuilder.forAddress(ip, port).usePlaintext().build
     createStubWith(channel)
   }
 
@@ -36,5 +38,19 @@ package object utils {
   ) = {
     val service = createServiceWith(serviceImpl, globalContext)
     io.grpc.ServerBuilder.forPort(0).addService(service).build.start
+  }
+
+  /* Leaves a log about the contents of the sequence of records with the
+     logger, with the description about the records desc. */
+  def logRecords(
+      logger: com.typesafe.scalalogging.Logger,
+      records: Seq[common.Record],
+      desc: String
+  ): Unit = {
+
+    logger.info(s"Contents of ${desc} are....")
+    for (record <- records)
+      logger.info(record.toString)
+    logger.info("------------------------------")
   }
 }

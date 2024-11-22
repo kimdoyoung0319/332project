@@ -4,6 +4,6 @@ package proto;
 
 message Empty {}
 
-message Record {
+message RecordMessage {
   bytes content = 1;
 }

@@ -57,4 +57,32 @@ class WorkerSuit extends AnyFunSuite with PrivateMethodTester {
 
     intercept[AssertionError]((Main invokePrivate parseArgs(args)))
   }
+
+  test("All files in the input directories must be identified correctly.") {
+    import os.{temp, makeDir, write}
+    import common.Block
+
+    val tempDir = temp.dir()
+    val inputDir1 = tempDir / "input" / "dir1"
+    val inputDir2 = tempDir / "input" / "dir2"
+    val inputDirs = Seq(inputDir1, inputDir2)
+
+    makeDir.all(inputDir1)
+    makeDir.all(inputDir2)
+
+    val inputFiles = Seq(
+      inputDir1 / "file.1",
+      inputDir1 / "file.2",
+      inputDir1 / "file.3",
+      inputDir2 / "file.1",
+      inputDir2 / "file.2"
+    )
+
+    inputFiles.foreach(write(_, "blah"))
+
+    val identifyBlocks = PrivateMethod[Seq[Block]](Symbol("identifyBlocks"))
+    val blocks = (Main invokePrivate identifyBlocks(inputDirs))
+
+    assert(blocks.map(_.path) === inputFiles)
+  }
 }

@@ -6,8 +6,20 @@ import "common.proto";
 
 service WorkerService {
   rpc Sample(Empty) returns (SampleResponse) {}
+  rpc Shuffle(ShuffleRequest) returns (Empty) {}
 }
 
 message SampleResponse {
-  repeated Record samples = 1;
+  repeated RecordMessage sample = 1;
 }
+
+message ShuffleRequest {
+  message WorkerInfos {
+    string ip = 1;
+    int32 port = 2;
+    bytes start_key = 3;
+  }
+   
+  map<int32, WorkerInfos> id_to_info = 1;
+}
+
