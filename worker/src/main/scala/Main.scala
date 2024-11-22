@@ -5,7 +5,7 @@ object Main {
   import common.Block
   import utils.globalContext
 
-  private val logger = com.typesafe.scalalogging.Logger("Worker-main")
+  private val logger = com.typesafe.scalalogging.Logger("worker")
 
   def main(args: Array[String]): Unit = {
     import scala.util.{Success, Failure}
@@ -13,15 +13,20 @@ object Main {
     val ((masterIp, masterPort), inputDirs, outputDir) = parseArgs(args)
     val blocks = identifyBlocks(inputDirs)
 
-    val server = new WorkerServer
+    val server = new WorkerServer(blocks)
     val client = new WorkerClient(masterIp, masterPort)
 
     client.register(server.port).onComplete {
-      case Success(_) => server.await()
+      case Success(_) =>
+        logger.info(
+          s"Succeeded to establish connection to ${masterIp}:${masterPort}."
+        )
+        server.await()
       case Failure(_) =>
         logger.error(
-          "Failed to establish connection to ${masterIp}:${masterPort}. Shutting down..."
+          s"Failed to establish connection to ${masterIp}:${masterPort}. Shutting down..."
         )
+        server.stop()
     }
   }
 

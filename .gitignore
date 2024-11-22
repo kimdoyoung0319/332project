@@ -2,12 +2,13 @@
 .*
 !.gitignore
 
-# Ignore intermediate build directory produced by Sbt.
+# Ignore intermediate build directory produced by sbt.
 target/
 
 # Ignore VSCode Metals plugin specific files.
 metals.sbt
 
-# Ignore log and binary file directory.
-log/
+# Ignore logs and binary file directory.
+*.log
+logs/
 bin/
