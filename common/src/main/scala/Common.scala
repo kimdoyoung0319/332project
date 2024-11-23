@@ -1,12 +1,4 @@
 package object common {
-  implicit class Bytes(bytes: Vector[Byte]) {
-    import com.google.protobuf.ByteString
-
-    def toArray(): Array[Byte] = bytes.toArray
-
-    def toByteString(): com.google.protobuf.ByteString =
-      ByteString.copyFrom(toArray())
-  }
 
   /* A record whose size is hundred of bytes. */
   class Record(val key: Vector[Byte], val value: Vector[Byte]) {
@@ -22,10 +14,11 @@ package object common {
       RecordMessage(content = ByteString.copyFrom(toArray()))
     }
 
+    def until(that: Record): (Vector[Byte], Vector[Byte]) = (this.key, that.key)
+
     override def toString(): String = {
-      val keyStr = key.map("%02X" format _).mkString
-      val valueStr = value.map("%02X" format _).mkString
-      keyStr ++ " " ++ valueStr
+      import utils.ByteVectorExtended
+      key.toHexString() ++ " " ++ value.toHexString()
     }
   }
 
@@ -47,8 +40,10 @@ package object common {
     def fromMessage(message: RecordMessage): Record =
       this(message.content.toByteArray)
 
+    /* Compare two vectors of bytes, and returns some positive value if x is
+       greater than y in lexicographical order. */
     @scala.annotation.tailrec
-    private def compareBytes(x: Vector[Byte], y: Vector[Byte]): Int = {
+    def compareBytes(x: Vector[Byte], y: Vector[Byte]): Int = {
       assert(x.size == y.size)
 
       (x, y) match {
@@ -74,7 +69,7 @@ package object common {
 
     def load(): Seq[Record] = contents.toSeq
 
-    def sorted(): Block = Block.from(load().sorted)
+    def sorted(path: os.Path): Block = Block.fromSeq(load().sorted, path)
 
     def read(): Generator[String] = Block(path).contents.map(_.toString)
 
@@ -85,16 +80,20 @@ package object common {
   object Block {
     import os.{Path, temp, write, exists}
 
-    var count = 0
-    val target: Path = temp.dir()
+    val size = 32 * 1024 * 1024
 
-    /* Writes the sequence of records into a file and returns new Block object
-     that refers to it. */
-    def from(s: Seq[Record]): Block = {
-      val path = target / s"temp.${count}"
-      val src = s.flatMap(_.toVector()).toArray
+    /* Writes the sequence of records into the file refered by path and returns
+       new Block object that refers to it. */
+    def fromSeq(seq: Seq[Record], path: Path): Block = {
+      val src = seq.flatMap(_.toVector()).toArray
+      write(path, src)
+      new Block(path)
+    }
 
-      count += 1
+    /* Writes the array of records into the file refered by path and returns new
+       Block object that refers to it. */
+    def fromArr(arr: Array[Record], path: Path): Block = {
+      val src = arr.flatMap(_.toVector()).toArray
       write(path, src)
       new Block(path)
     }
@@ -105,5 +104,17 @@ package object common {
       assert(exists(path))
       new Block(path)
     }
+  }
+
+  /* Class to manage worker information. */
+  case class Worker(val id: Int, val ip: String, val port: Int) {
+    import proto.worker._
+    import proto.worker.ShuffleRequest.WorkerMessage
+    import com.google.protobuf.ByteString
+
+    val stub = utils.makeStub(ip, port)(WorkerServiceGrpc.stub)
+
+    def toMapping(start: ByteString, end: ByteString): (Int, WorkerMessage) =
+      (id, WorkerMessage(ip = ip, port = port, start = start, end = end))
   }
 }
