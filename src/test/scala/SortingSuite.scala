@@ -52,6 +52,7 @@ object Valsort {
 
 class SortingSuite extends AnyFunSuite {
   val logger = Logger("root")
+  val temp = os.temp.dir()
 
   def logRecordsWithPath(path: Path, msg: String): Unit = {
     assert(os.exists(path))
@@ -84,7 +85,7 @@ class SortingSuite extends AnyFunSuite {
   test("A single ASCII block should be sorted properly.") {
     val test = Gensort.makeAscii(5)
     logRecordsWithPath(test, "unsorted ASCII block")
-    val sorted = Block(test).sorted()
+    val sorted = Block(test).sorted(temp / "ascii-test")
     logRecordsWithPath(sorted.path, "sorted ASCII block")
     assert(Valsort.validate(sorted.path))
   }
@@ -92,7 +93,7 @@ class SortingSuite extends AnyFunSuite {
   test("A single binary block should be sorted properly.") {
     val test = Gensort.makeBinary(5)
     logRecordsWithPath(test, "unsorted binary block")
-    val sorted = Block(test).sorted()
+    val sorted = Block(test).sorted(temp / "binary-test")
     logRecordsWithPath(sorted.path, "sorted binary block")
     assert(Valsort.validate(sorted.path))
   }
