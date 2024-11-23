@@ -1,22 +1,18 @@
 package master
 
+/* TODO: Clean up global namespace of this module. */
 import proto.master._
 import proto.worker.SampleResponse
 import proto.worker.ShuffleRequest
 
 class MasterService(workerCount: Int) extends MasterServiceGrpc.MasterService {
   import proto.common.Empty
-  import proto.worker.{SampleResponse, WorkerServiceGrpc}
+  import proto.worker.SampleResponse
   import scala.concurrent.{Future, Promise}
   import utils.globalContext
+  import common.Worker
 
-  case class Worker(
-      val id: Int,
-      val ip: String,
-      val port: Int,
-      val stub: WorkerServiceGrpc.WorkerServiceStub
-  )
-
+  /* TODO: Rewrite this using Future. */
   var workers: Seq[Worker] = Nil
   var nextId: Int = 0
 
@@ -25,25 +21,25 @@ class MasterService(workerCount: Int) extends MasterServiceGrpc.MasterService {
   val sampling = Promise[Seq[SampleResponse]]()
   val shuffling = Promise[Unit]()
 
-  override def register(request: RegisterRequest): Future[Empty] = Future {
-    import proto.worker.WorkerServiceGrpc
+  override def register(request: RegisterRequest): Future[RegisterReply] =
+    Future {
+      import proto.worker.WorkerServiceGrpc
 
-    if (workers.size >= workerCount)
-      throw new IllegalStateException
+      if (workers.size >= workerCount)
+        throw new IllegalStateException
 
-    val (ip, port) = (request.ip, request.port)
-    val stub = utils.makeStub(ip, port)(WorkerServiceGrpc.stub)
+      val (ip, port) = (request.ip, request.port)
+      val worker = Worker(nextId, ip, port)
+      workers = workers.appended(worker)
+      nextId += 1
 
-    workers = workers.appended(Worker(nextId, ip, port, stub))
-    nextId += 1
+      if (workers.size == workerCount)
+        registration.success(())
 
-    if (workers.size == workerCount)
-      registration.success(())
+      logger.info(s"Connection with ${ip}:${port} has been established.")
 
-    logger.info(s"Connection with ${ip}:${port} has been established.")
-
-    Empty()
-  }
+      RegisterReply(worker.id)
+    }
 }
 
 class MasterServer(workerCount: Int) {
@@ -83,6 +79,10 @@ class MasterServer(workerCount: Int) {
     all.foreach { case _ => service.shuffling.success(()) }
   }
 
+  service.shuffling.future.foreach { case _ =>
+    logger.info("Shuffling phase has been finished.")
+  }
+
   def await(): Unit = server.awaitTermination()
 
   implicit class Responses(responses: Seq[SampleResponse]) {
@@ -93,18 +93,38 @@ class MasterServer(workerCount: Int) {
 
   private def partition(
       samples: Seq[Record]
-  ): Map[Int, proto.worker.ShuffleRequest.WorkerInfos] = {
+  ): Map[Int, proto.worker.ShuffleRequest.WorkerMessage] = {
 
-    import proto.worker.ShuffleRequest.WorkerInfos
-    import common.Bytes
+    import proto.worker.ShuffleRequest.WorkerMessage
+    import com.google.protobuf.ByteString
+    import utils.ByteStringExtended
+    import utils.ByteVectorExtended
 
+    /* This routine assumes that all IDs of the workers are not duplicated and
+       have consecutive values. i.e. There must not be any unassigned ID values
+       within the ID range. */
     val sorted = samples.sorted
     val offset = samples.size / workerCount
     val seq = for (worker <- service.workers) yield {
-      val key = sorted(worker.id * offset).key.toByteString()
-      val workerInfo = WorkerInfos(worker.ip, worker.port, key)
+      import utils.{maxKey, minKey}
 
-      (worker.id, workerInfo)
+      /* TODO: Refactor this. */
+      val (start, end) = worker.id match {
+        case 0 => (minKey.toByteString(), sorted(offset).key.toByteString())
+        case id if id == (workerCount - 1) =>
+          (sorted(worker.id * offset).key.toByteString(), maxKey.toByteString())
+        case id =>
+          (
+            sorted(worker.id * offset).key.toByteString(),
+            sorted((worker.id + 1) * offset).key.toByteString()
+          )
+      }
+
+      logger.info(
+        s"Partition for ${worker.id} is [${start.toHexString()}, ${end.toHexString()})."
+      )
+
+      worker.toMapping(start, end)
     }
 
     seq.toMap
