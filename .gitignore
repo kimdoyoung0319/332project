@@ -12,3 +12,6 @@ metals.sbt
 *.log
 logs/
 bin/
+
+# Ignore temporal directory.
+temp/
