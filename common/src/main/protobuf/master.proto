@@ -5,7 +5,7 @@ package proto;
 import "common.proto";
 
 service MasterService {
-  rpc Register(RegisterRequest) returns (Empty);
+  rpc Register(RegisterRequest) returns (RegisterReply);
 }
 
 message RegisterRequest {
@@ -13,3 +13,6 @@ message RegisterRequest {
   uint32 port = 2;
 }
 
+message RegisterReply {
+  int32 id = 1;
+}

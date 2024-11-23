@@ -7,6 +7,7 @@ import "common.proto";
 service WorkerService {
   rpc Sample(Empty) returns (SampleResponse) {}
   rpc Shuffle(ShuffleRequest) returns (Empty) {}
+  rpc Demand(DemandRequest) returns (stream RecordMessage) {}
 }
 
 message SampleResponse {
@@ -14,12 +15,16 @@ message SampleResponse {
 }
 
 message ShuffleRequest {
-  message WorkerInfos {
+  message WorkerMessage {
     string ip = 1;
     int32 port = 2;
-    bytes start_key = 3;
+    bytes start = 3;
+    bytes end = 4;
   }
    
-  map<int32, WorkerInfos> id_to_info = 1;
+  map<int32, WorkerMessage> id_to_worker = 1;
 }
 
+message DemandRequest {
+  int32 id = 1;
+}
