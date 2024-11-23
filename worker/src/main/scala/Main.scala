@@ -13,13 +13,13 @@ object Main {
     val ((masterIp, masterPort), inputDirs, outputDir) = parseArgs(args)
     val blocks = identifyBlocks(inputDirs)
 
-    val server = new WorkerServer(blocks)
-    val client = new WorkerClient(masterIp, masterPort)
+    val client = new WorkerClient(masterIp, masterPort, outputDir)
+    val server = new WorkerServer(blocks, client)
 
     client.register(server.port).onComplete {
-      case Success(_) =>
+      case Success(id) =>
         logger.info(
-          s"Succeeded to establish connection to ${masterIp}:${masterPort}."
+          s"Succeeded to establish connection to ${masterIp}:${masterPort} as ID of ${id}."
         )
         server.await()
       case Failure(_) =>
@@ -28,6 +28,8 @@ object Main {
         )
         server.stop()
     }
+
+    server.await()
   }
 
   private def parseArgs(
