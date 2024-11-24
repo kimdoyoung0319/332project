@@ -254,26 +254,26 @@ Let's implement distrobuted sorting!
 - [The implemented code can be viewed here.](https://github.com/kimdoyoung0319/332project/tree/doyoung)
 
 #### Changes of Overall Design
-1. The design, which proceeded in the order of sorting, sampling, shuffling, and merging, has been revised.   
-   -> **Change**: The design now proceeds in the order of sampling, shuffling, and sorting.
+1. The design, which proceeded in the order of **sorting, sampling, shuffling, and merging** has been revised.   
+   -> **Change**: The design now proceeds in the order of **sampling, shuffling, and sorting**.
 2. At sampling phase, after sorting the worker's data, one sample from each distribution range was sent to the master.   
-   -> **Change**: A random sample from the worker's data is now sent to the master.
+   -> **Change**: A random sample from the worker's data is now sent to the master. **(No worker sorting before sampling)**
 
 #### Tasks Completed This Week
-1. Defined proto files for communication between master and worker nodes.
+1. **Defined proto files for communication between master and worker nodes.**
    - common.proto, master.proto, worker.proto 
      - **common.proto** defines types that are used commonly in both master and worker. 
      - **master.proto** defines the requests that workers send to the master. 
      - **worker.proto** defines requests that the master sends to workers and requests between workers.
 2. Worker sends its IP and port to the master, the master responds with an ID.
-3. Implemented the following processes in the master:
+3. **Implemented the following processes in the master(Tested):**
    - Once all workers are registered, the master initiates sampling.
    - After collecting sample data, partitioning and shuffling are requested. 
    - Once shuffling is complete, sorting is requested. 
    - After sorting, the entire process concludes.
-4. Implemented the sampling stage:
+4. **Implemented the sampling phase(Tested):**
    - Each worker extracts a sample and sends it to the master, which then creates partitions (range information) and responds accordingly. 
-5. Implemented the shuffling stage:
+5. **Implemented the shuffling phase:**
    - Each worker is assigned an ID, and partitions are mapped to IDs. 
    - Workers split their data into blocks based on partitions and store them in a directory **/temp**. They then send blocks corresponding to their mapped partition to other workers. 
    - StreamObserver is used for handling streaming data. 
@@ -282,10 +282,14 @@ Let's implement distrobuted sorting!
      - Shuffling is implemented asynchronously(**concurrently**) using futures and promises.
 
 #### Next Week's Plan
-1. Although the shuffling stage has been implemented, it requires testing with proper logging.
-2. The sorting stage still needs to be implemented and will be handled using external disk sorting.
-3. Once sorting is completed, the entire process will be finished.
-4. Implement handling for disk overflow and memory overflow scenarios.
+1. **Debug shuffling phase**
+   - Although the shuffling phase has been implemented, it requires testing with proper logging.
+2. **Implement sorting phase**
+   - The sorting phase still needs to be implemented and will be handled using external disk sorting.
+3. **Test entire process**
+   - Once sorting is completed, the entire process will be finished.
+4. **Add logic of overflow handling**
+   - Implement handling for disk overflow and memory overflow scenarios.
 
 
 <details>
