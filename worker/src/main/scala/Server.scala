@@ -27,7 +27,8 @@ class WorkerService(blocks: Seq[Block], client: WorkerClient)
         yield Worker(id, msg.ip, msg.port)
 
     /* What happens if the construction is not yet finished, but another worker
-       requests a block from here? */
+       demands records from this? i.e. What happens if another worker calls
+       demand() and idToRange is still null? */
     val ranges =
       for ((id, msg) <- request.idToWorker.toSeq) yield {
         assert(msg.start.size == Record.length)
@@ -65,6 +66,9 @@ class WorkerService(blocks: Seq[Block], client: WorkerClient)
 
     observer.onCompleted()
   }
+
+  override def sort(request: Empty): Future[Empty] =
+    client.sort(received).map { case _ => Empty() }
 }
 
 class WorkerServer(blocks: Seq[Block], client: WorkerClient) {

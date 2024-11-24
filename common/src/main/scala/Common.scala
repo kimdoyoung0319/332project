@@ -58,12 +58,19 @@ package object common {
     }
   }
 
-  /* A file contains sequence of records. */
+  /* A file contains sequence of records, and fit in the memory. */
   class Block(val path: os.Path) {
     import geny.Generator
-    import os.read.chunks
+    import scala.concurrent.Promise
+
+    assert(os.isFile(path))
+
+    val removed = Promise[Unit]()
 
     val contents: Generator[Record] = {
+      import os.read.chunks
+
+      assert(!removed.isCompleted)
       chunks(path, Record.length).map { case (arr, _) => Record(arr) }
     }
 
@@ -74,6 +81,12 @@ package object common {
     def read(): Generator[String] = Block(path).contents.map(_.toString)
 
     def sample(): Record = contents.head
+
+    /* Warning! Invoking this method on wrong block may have severe impact. */
+    def remove(): Unit = {
+      removed.success(())
+      os.remove(path)
+    }
   }
 
   /* Companion object for Block. */

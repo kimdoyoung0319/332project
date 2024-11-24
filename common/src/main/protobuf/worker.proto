@@ -8,6 +8,7 @@ service WorkerService {
   rpc Sample(Empty) returns (SampleResponse) {}
   rpc Shuffle(ShuffleRequest) returns (Empty) {}
   rpc Demand(DemandRequest) returns (stream RecordMessage) {}
+  rpc Sort(Empty) returns (Empty) {}
 }
 
 message SampleResponse {
