@@ -20,6 +20,7 @@ class MasterService(workerCount: Int) extends MasterServiceGrpc.MasterService {
   val registration = Promise[Unit]()
   val sampling = Promise[Seq[SampleResponse]]()
   val shuffling = Promise[Unit]()
+  val sorting = Promise[Unit]()
 
   override def register(request: RegisterRequest): Future[RegisterReply] =
     Future {
@@ -45,6 +46,8 @@ class MasterService(workerCount: Int) extends MasterServiceGrpc.MasterService {
 class MasterServer(workerCount: Int) {
   import common.Record
   import utils.globalContext
+  import scala.concurrent.Future
+  import proto.common.Empty
 
   private val logger = com.typesafe.scalalogging.Logger("master")
   private val service = new MasterService(workerCount)
@@ -55,9 +58,6 @@ class MasterServer(workerCount: Int) {
   println(s"${utils.thisIp}:${server.getPort}")
 
   service.registration.future.foreach { case _ =>
-    import proto.common.Empty
-    import scala.concurrent.Future
-
     logger.info("All workers have established connections.")
 
     val all = for (worker <- service.workers) yield worker.stub.sample(Empty())
@@ -65,8 +65,6 @@ class MasterServer(workerCount: Int) {
   }
 
   service.sampling.future.foreach { responses =>
-    import proto.common.Empty
-    import scala.concurrent.Future
     import proto.worker.ShuffleRequest
 
     logger.info("All samples have been collected. ")
@@ -76,11 +74,33 @@ class MasterServer(workerCount: Int) {
     val request = ShuffleRequest(partitions)
     val all = for (worker <- service.workers) yield worker.stub.shuffle(request)
 
-    all.foreach { case _ => service.shuffling.success(()) }
+    Future.sequence(all).foreach { case _ => service.shuffling.success(()) }
   }
 
   service.shuffling.future.foreach { case _ =>
     logger.info("Shuffling phase has been finished.")
+
+    val all = for (worker <- service.workers) yield worker.stub.sort(Empty())
+
+    Future.sequence(all).foreach { case _ => service.sorting.success(()) }
+  }
+
+  service.sorting.future.foreach { case _ =>
+    logger.info(
+      "The whole procedure has been finished. The order of the workers is..."
+    )
+
+    /* According to partition() method, the order of IDs is identical with
+       the order of the records in the worker. This routine assumes that the
+       IDs in range [0, workerCount) are all assigned. */
+    for (id <- 0 until workerCount) {
+      val worker = service.workers.find(_.id == id).get
+
+      printf(s"${worker.ip} ")
+      logger.info(s"${worker.id}: ${worker.ip}")
+    }
+
+    server.shutdown()
   }
 
   def await(): Unit = server.awaitTermination()

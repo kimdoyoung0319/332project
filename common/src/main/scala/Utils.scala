@@ -102,4 +102,15 @@ package object utils {
       logger.info(record.toString)
     logger.info("------------------------------")
   }
+
+  /* Thread-safe allocator for filenames under path with base filename. */
+  class FileNameAllocator(path: os.Path, base: String) {
+    var counter = 0
+
+    def allocate(): os.Path = synchronized {
+      val result = path / s"${base}.${counter}"
+      counter += 1
+      result
+    }
+  }
 }

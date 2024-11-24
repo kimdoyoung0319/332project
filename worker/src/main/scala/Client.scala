@@ -1,5 +1,7 @@
 package worker
 
+import java.io.FilenameFilter
+
 class WorkerClient(masterIp: String, masterPort: Int, outputDir: os.Path) {
   import proto.master._
   import proto.common.{Empty, RecordMessage}
@@ -34,9 +36,15 @@ class WorkerClient(masterIp: String, masterPort: Int, outputDir: os.Path) {
       reception.future
     }
 
+    /* Maps sequence of sequence of blocks into a single sequence of blocks. */
     Future.sequence(all).map { seqs =>
       for (seq <- seqs; block <- seq) yield block
     }
+  }
+
+  def sort(inputs: Seq[Block]): Future[Unit] = {
+    val sorter = new Sorter(inputs, outputDir, 10)
+    sorter.run()
   }
 
   class RecordsObserver(reception: Promise[Seq[Block]])
@@ -45,31 +53,26 @@ class WorkerClient(masterIp: String, masterPort: Int, outputDir: os.Path) {
     import common.Block
 
     val maxElems = Block.size / Record.length
+    val allocator = new utils.FileNameAllocator(outputDir / "temp", "temp")
+    /* TODO: Rewrite this using scala.collections.mutable.Buffer. */
     var buffer: Array[Record] = Array()
     var blocks: Seq[Block] = Nil
 
     def onNext(msg: RecordMessage): Unit = {
+
       buffer = buffer :+ Record.fromMessage(msg)
 
       if (buffer.size == maxElems) {
-        blocks = blocks :+ Block.fromArr(buffer, FileNameAllocator.allocate())
+        blocks = blocks :+ Block.fromArr(buffer, allocator.allocate())
         buffer = Array()
       }
     }
 
-    def onCompleted(): Unit = reception.success(blocks)
+    def onCompleted(): Unit = {
+      blocks = blocks :+ Block.fromArr(buffer, allocator.allocate())
+      reception.success(blocks)
+    }
 
     def onError(exception: Throwable) = reception.failure(exception)
-  }
-
-  object FileNameAllocator {
-    val temp = outputDir / "temp"
-    var counter = 0
-
-    def allocate(): os.Path = synchronized {
-      val result = temp / s"temp.${counter}"
-      counter += 1
-      result
-    }
   }
 }
