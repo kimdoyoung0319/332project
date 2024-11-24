@@ -41,7 +41,6 @@ Let's implement distrobuted sorting!
 * Share individual design components, and explore better solutions for the project together.
 * Design and Implementation Plan Specification.
 
-</details>
 
 ### Week 5
 * Running and debugging implementation environment settings and test code
@@ -49,9 +48,9 @@ Let's implement distrobuted sorting!
 * How do I do the integration test?
 * Discuss the issues you faced during your work.
 
-<details>
-<summary> Milestones for next weeks </summary>
-  
+
+</details>
+
 ### Week 6
 * **Prepare for presentation!**
 * Add *details* to the finalized design.
@@ -62,8 +61,12 @@ Let's implement distrobuted sorting!
 * Distribute coding tasks based on the finalized design. (based on phases)
 * Coding!
   - **overall phase**
-    1. Master can send phase service.   
+    1. Master can send phase service.
     2. Each worker can performs different tasks based on the phase flag.
+
+<details>
+<summary> Milestones for next weeks </summary>
+  
 
 ### Week 7
 * Continue coding while commiting your code to your Git branch.
@@ -220,7 +223,6 @@ Let's implement distrobuted sorting!
   take responsibility of supporting him (by the surgical team model of *the 
   Mythical Man Month*).
 
-</details>
 
 ### Week 5
 - [Meeting Minute of This Week](https://docs.google.com/document/d/1RkFKvAxPYGVAnsNgUA4w1OFz7I9jFjmnB0VoF5iNqqQ/edit?usp=sharing)
@@ -244,10 +246,51 @@ Let's implement distrobuted sorting!
   - In the Sample Phase, Worker machines sort data locally, access indices in strides, and send the sample list to the Master.
   - Further discussions planned to refine the final design.
 
+</details>
+
+### Week 6
+- Held a team meeting via Zoom on Sunday.
+- The handling of disk overflow has been decided to be implemented after completing the entire system.
+- [The implemented code can be viewed here.](https://github.com/kimdoyoung0319/332project/tree/doyoung)
+
+#### Changes of Overall Design
+1. The design, which proceeded in the order of sorting, sampling, shuffling, and merging, has been revised.   
+   -> **Change**: The design now proceeds in the order of sampling, shuffling, and sorting.
+2. At sampling phase, after sorting the worker's data, one sample from each distribution range was sent to the master.   
+   -> **Change**: A random sample from the worker's data is now sent to the master.
+
+#### Tasks Completed This Week
+1. Defined proto files for communication between master and worker nodes.
+   - common.proto, master.proto, worker.proto 
+     - **common.proto** defines types that are used commonly in both master and worker. 
+     - **master.proto** defines the requests that workers send to the master. 
+     - **worker.proto** defines requests that the master sends to workers and requests between workers.
+2. Worker sends its IP and port to the master, the master responds with an ID.
+3. Implemented the following processes in the master:
+   - Once all workers are registered, the master initiates sampling.
+   - After collecting sample data, partitioning and shuffling are requested. 
+   - Once shuffling is complete, sorting is requested. 
+   - After sorting, the entire process concludes.
+4. Implemented the sampling stage:
+   - Each worker extracts a sample and sends it to the master, which then creates partitions (range information) and responds accordingly. 
+5. Implemented the shuffling stage:
+   - Each worker is assigned an ID, and partitions are mapped to IDs. 
+   - Workers split their data into blocks based on partitions and store them in a directory **/temp**. They then send blocks corresponding to their mapped partition to other workers. 
+   - StreamObserver is used for handling streaming data. 
+   - Each worker requests data from other workers using its ID and receives responses accordingly. 
+   - All responses from workers are combined into a single future, marking the completion of shuffling. 
+     - Shuffling is implemented asynchronously(**concurrently**) using futures and promises.
+
+#### Next Week's Plan
+1. Although the shuffling stage has been implemented, it requires testing with proper logging.
+2. The sorting stage still needs to be implemented and will be handled using external disk sorting.
+3. Once sorting is completed, the entire process will be finished.
+4. Implement handling for disk overflow and memory overflow scenarios.
+
+
 <details>
 <summary> Progresses for next weeks </summary>
 
-### Week 6
 ### Week 7
 ### Week 8
 
