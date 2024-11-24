@@ -273,7 +273,7 @@ Let's implement distrobuted sorting!
    - After sorting, the entire process concludes.
 4. **Implemented the sampling phase(Tested):**
    - Each worker extracts a sample and sends it to the master, which then creates partitions (range information) and responds accordingly. 
-5. **Implemented the shuffling phase:**
+5. **Implemented the shuffling phase(Not tested yet):**
    - Each worker is assigned an ID, and partitions are mapped to IDs. 
    - Workers split their data into blocks based on partitions and store them in a directory **/temp**. They then send blocks corresponding to their mapped partition to other workers. 
    - StreamObserver is used for handling streaming data. 
