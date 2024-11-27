@@ -2,7 +2,9 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.PrivateMethodTester
 import worker._
 
-class WorkerSuit extends AnyFunSuite with PrivateMethodTester {
+class WorkerSuite extends AnyFunSuite with PrivateMethodTester {
+  val logger = com.typesafe.scalalogging.Logger("worker")
+
   test("Arguments must be parsed properly.") {
     import utils.stringToPath
     import os.Path
@@ -39,7 +41,7 @@ class WorkerSuit extends AnyFunSuite with PrivateMethodTester {
       "output/dir"
     )
 
-    intercept[AssertionError]((Main invokePrivate parseArgs(args)))
+    intercept[IllegalArgumentException]((Main invokePrivate parseArgs(args)))
   }
 
   test("Ill-formed arguments must be caught by assertions. (2)") {
@@ -55,7 +57,7 @@ class WorkerSuit extends AnyFunSuite with PrivateMethodTester {
       "output/dir"
     )
 
-    intercept[AssertionError]((Main invokePrivate parseArgs(args)))
+    intercept[IllegalArgumentException]((Main invokePrivate parseArgs(args)))
   }
 
   test("All files in the input directories must be identified correctly.") {

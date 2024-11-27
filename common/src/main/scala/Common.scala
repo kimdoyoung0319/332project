@@ -40,21 +40,11 @@ package object common {
     def fromMessage(message: RecordMessage): Record =
       this(message.content.toByteArray)
 
-    /* Compare two vectors of bytes, and returns some positive value if x is
-       greater than y in lexicographical order. */
-    @scala.annotation.tailrec
-    def compareBytes(x: Vector[Byte], y: Vector[Byte]): Int = {
-      assert(x.size == y.size)
-
-      (x, y) match {
-        case (xh +: xt, yh +: yt) if xh == yh => compareBytes(xt, yt)
-        case (xh +: _, yh +: _) => (xh.toShort & 0xFF) - (yh.toShort & 0xFF)
-        case (_, _) => 0
-      }
-    }
-
     implicit object Ordering extends Ordering[Record] {
-      def compare(x: Record, y: Record): Int = compareBytes(x.key, y.key)
+      def compare(x: Record, y: Record): Int = {
+        import utils.ByteVectorExtended
+        x.key.compare(y.key)
+      }
     }
   }
 
@@ -66,21 +56,33 @@ package object common {
     assert(os.isFile(path))
 
     val removed = Promise[Unit]()
+    var pos = 0
+
+    if (!os.exists(path))
+      removed.success(())
 
     val contents: Generator[Record] = {
       import os.read.chunks
 
       assert(!removed.isCompleted)
-      chunks(path, Record.length).map { case (arr, _) => Record(arr) }
+      chunks(path, Record.length).drop(pos).map { case (arr, _) => Record(arr) }
     }
 
     def load(): Seq[Record] = contents.toSeq
 
     def sorted(path: os.Path): Block = Block.fromSeq(load().sorted, path)
 
-    def read(): Generator[String] = Block(path).contents.map(_.toString)
+    def read(): Generator[String] = contents.map(_.toString)
 
     def sample(): Record = contents.head
+
+    def advance(): Record = {
+      val result = contents.head
+      pos += 1
+      result
+    }
+
+    def exhausted(): Boolean = pos >= contents.count()
 
     /* Warning! Invoking this method on wrong block may have severe impact. */
     def remove(): Unit = {

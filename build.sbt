@@ -30,6 +30,7 @@ lazy val common = (project in file("common"))
     )
   )
 
+/* TODO: Add dependencies for sbt-Assembly. */
 lazy val master = (project in file("master"))
   .dependsOn(common)
   .settings(

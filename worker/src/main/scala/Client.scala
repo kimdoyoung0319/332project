@@ -12,6 +12,7 @@ class WorkerClient(masterIp: String, masterPort: Int, outputDir: os.Path) {
   var id: Int = -1
   private val stub =
     utils.makeStub(masterIp, masterPort)(MasterServiceGrpc.stub)
+  private val logger = com.typesafe.scalalogging.Logger("worker")
 
   def register(port: Int): Future[Int] = {
     import utils.globalContext
@@ -43,8 +44,14 @@ class WorkerClient(masterIp: String, masterPort: Int, outputDir: os.Path) {
   }
 
   def sort(inputs: Seq[Block]): Future[Unit] = {
-    val sorter = new Sorter(inputs, outputDir, 10)
-    sorter.run()
+    import utils.globalContext
+    val sorter = new Sorter(inputs.map(_.path), outputDir)
+
+    sorter.run().map { files =>
+      logger.info("Sorting finished. The path for the output blocks are...")
+      for (file <- files)
+        logger.info(file.toString())
+    }
   }
 
   class RecordsObserver(reception: Promise[Seq[Block]])
