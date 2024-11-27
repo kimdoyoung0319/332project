@@ -57,13 +57,19 @@ class MasterServer(workerCount: Int) {
 
   println(s"${utils.thisIp}:${server.getPort}")
 
+  /* TODO: Add invariants for each completion of states. */
+  /* Registration phase callback function. */
   service.registration.future.foreach { case _ =>
     logger.info("All workers have established connections.")
 
-    val all = for (worker <- service.workers) yield worker.stub.sample(Empty())
-    service.sampling.completeWith(Future.sequence(all))
+    val all = for (worker <- service.workers) yield {
+      println(s"Worker #${worker.id}: ${worker.ip}:${worker.port}.")
+      // worker.stub.sample(Empty())
+    }
+  // service.sampling.completeWith(Future.sequence(all))
   }
 
+  /* Sampling phase callback function. */
   service.sampling.future.foreach { responses =>
     import proto.worker.ShuffleRequest
 
@@ -77,6 +83,7 @@ class MasterServer(workerCount: Int) {
     Future.sequence(all).foreach { case _ => service.shuffling.success(()) }
   }
 
+  /* Shuffling phase callback function. */
   service.shuffling.future.foreach { case _ =>
     logger.info("Shuffling phase has been finished.")
 
@@ -85,6 +92,7 @@ class MasterServer(workerCount: Int) {
     Future.sequence(all).foreach { case _ => service.sorting.success(()) }
   }
 
+  /* Sorting phase callback function. */
   service.sorting.future.foreach { case _ =>
     logger.info(
       "The whole procedure has been finished. The order of the workers is..."

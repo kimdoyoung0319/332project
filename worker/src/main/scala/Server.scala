@@ -15,6 +15,9 @@ class WorkerService(blocks: Seq[Block], client: WorkerClient)
   var idToRange: Map[Int, (Vector[Byte], Vector[Byte])] = null
 
   override def sample(request: Empty): Future[SampleResponse] = Future {
+    /* This routine assumes that each blocks are at most 32 MiB. */
+    /* TODO: Enforce mimimum sample size. (Currently, the sample size varies
+             according to the number of blocks.) */
     val sample = for (block <- blocks) yield block.sample().toMessage()
     SampleResponse(sample = sample)
   }
@@ -55,12 +58,11 @@ class WorkerService(blocks: Seq[Block], client: WorkerClient)
 
     assert(idToRange != null)
 
-    val id = request.id
-
+    /* TODO: Fix the error that a worker machine fails to send demanded records
+             properly. */
     for {
-      block <- blocks
-      record <- block.contents
-      if idToRange(id).contains(record)
+      block <- blocks; record <- block.contents
+      if idToRange(request.id).contains(record)
     }
       observer.onNext(record.toMessage())
 

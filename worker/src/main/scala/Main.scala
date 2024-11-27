@@ -39,7 +39,10 @@ object Main {
     import utils.stringToPath
 
     val ipPortPattern = """^(\d{1,3}\.){3}\d{1,3}:\d{1,5}$""".r
-    assert(ipPortPattern.matches(args(0)))
+    require(
+      ipPortPattern.matches(args(0)),
+      "The pattern for master server address does not match."
+    )
     val (masterIp, masterPort) = {
       val parts = args(0).split(":")
       (parts(0), parts(1).toInt)
@@ -61,7 +64,7 @@ object Main {
       }
     }
 
-    assert(inputDirs != Nil && outputDir != null)
+    require(inputDirs != Nil && outputDir != null)
 
     ((masterIp, masterPort), inputDirs, outputDir)
   }
