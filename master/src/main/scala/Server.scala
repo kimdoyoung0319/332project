@@ -64,14 +64,15 @@ class MasterServer(workerCount: Int) {
 
     val all = for (worker <- service.workers) yield {
       println(s"Worker #${worker.id}: ${worker.ip}:${worker.port}.")
-      // worker.stub.sample(Empty())
+      worker.stub.sample(Empty())
     }
-  // service.sampling.completeWith(Future.sequence(all))
+    service.sampling.completeWith(Future.sequence(all))
   }
 
   /* Sampling phase callback function. */
   service.sampling.future.foreach { responses =>
     import proto.worker.ShuffleRequest
+    import scala.util.{Success, Failure}
 
     logger.info("All samples have been collected. ")
 
@@ -80,7 +81,10 @@ class MasterServer(workerCount: Int) {
     val request = ShuffleRequest(partitions)
     val all = for (worker <- service.workers) yield worker.stub.shuffle(request)
 
-    Future.sequence(all).foreach { case _ => service.shuffling.success(()) }
+    Future.sequence(all).onComplete {
+      case Success(_) => service.shuffling.success(())
+      case Failure(e) => throw e
+    }
   }
 
   /* Shuffling phase callback function. */
@@ -149,7 +153,7 @@ class MasterServer(workerCount: Int) {
       }
 
       logger.info(
-        s"Partition for ${worker.id} is [${start.toHexString()}, ${end.toHexString()})."
+        s"Partition for ${worker.id} is [${start.toHexString}, ${end.toHexString})."
       )
 
       worker.toMapping(start, end)

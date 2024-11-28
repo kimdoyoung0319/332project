@@ -1,57 +1,103 @@
 package worker
 
-class Sorter(inputFiles: Seq[os.Path], targetDir: os.Path) {
-  import scala.concurrent.Future
+import scala.collection.mutable
+
+/* For debug purposes. */
+object SorterTester {
+  def test(): Unit = {
+    import common.Block
+    import utils.globalContext
+    import scala.util.{Success, Failure}
+    import utils.test.Gensort
+    import scala.io.StdIn.readLine
+
+    val inputDir = os.home / "temp" / "input"
+    val targetDir = os.home / "temp" / "output"
+
+    for (entry <- os.list(inputDir))
+      os.remove.all(entry)
+
+    for (entry <- os.list(targetDir))
+      os.remove.all(entry)
+
+    Gensort.makeBinaryAt(1000, inputDir / "input.0")
+    Gensort.makeBinaryAt(1000, inputDir / "input.1")
+    Gensort.makeBinaryAt(1000, inputDir / "input.2")
+
+    readLine("Dataset generated. Press any key to continue...")
+
+    val inputBlocks = os.list(inputDir).map(Block(_))
+    val sorter = new Sorter(inputBlocks, targetDir)
+
+    sorter.run().onComplete {
+      case Success(blocks) => blocks foreach println
+      case Failure(exception) => throw exception
+    }
+  }
+}
+
+class Sorter(inputBlocks: Seq[common.Block], targetDir: os.Path) {
   import utils.globalContext
+  import scala.concurrent.Future
+  import scala.collection.mutable.Buffer
   import common.{Block, Record}
+  import os.Path
 
-  assert(os.isDir(targetDir))
-  assert(inputFiles.forall(os.isFile(_)))
+  val logger = com.typesafe.scalalogging.Logger("worker")
+  var nextFinalFileNumber = 0
 
-  def run(): Future[Seq[os.Path]] = sortAll(inputFiles).map(merge(targetDir))
+  def run(): Future[Seq[Block]] = sortAll().map(merge)
+  def runMergingOnly(): Future[Seq[Block]] = Future(merge(inputBlocks))
 
-  private def sortAll(files: Seq[os.Path]): Future[Seq[os.Path]] = {
-    val sortedFutures = for (file <- files) yield sortAndRemove(file)
-    Future.sequence(sortedFutures)
+  private val tempDir = targetDir / "temp"
+
+  private def sortAll(): Future[Seq[Block]] = {
+    if (!os.exists(tempDir))
+      os.makeDir(tempDir)
+    else
+      for (file <- os.list(tempDir)) os.remove(file)
+
+    val sortedFileNameAllocator = new utils.FileNameAllocator(tempDir, "sorted")
+    Future.sequence(inputBlocks.map(sortOneAndRemove(sortedFileNameAllocator)))
   }
 
-  private def sortAndRemove(file: os.Path): Future[os.Path] = Future {
-    val sortedFilePath = file / os.up / s"${file.last}.sorted"
-    val sortedFile = Block(file).sorted(sortedFilePath)
-
-    os.remove(file)
-    sortedFilePath
+  private def sortOneAndRemove(
+      fileNameAllocator: utils.FileNameAllocator
+  )(block: common.Block): Future[Block] = Future {
+    val sortedFileName = fileNameAllocator.allocate()
+    val resultBlock = block.sorted(sortedFileName)
+    block.remove()
+    resultBlock
   }
 
-  private def merge(targetDir: os.Path)(files: Seq[os.Path]): Seq[os.Path] = {
-    import scala.collection.mutable.Buffer
+  private def merge(blocks: Seq[Block]): Seq[Block] = {
+    import scala.collection.mutable.{PriorityQueue, ListBuffer}
+    import utils.RecordsBufferExtended
 
-    var finalResultPaths = Seq[os.Path]()
+    /* TODO: This may be problematic since it loads all the block contents into
+             the memory... */
+    val recordsPriorityQueue = PriorityQueue[Record]()(Record.Ordering.reverse)
+    val writtenBlocks = ListBuffer[Block]()
+    for (block <- blocks; record <- block.contents)
+      recordsPriorityQueue.enqueue(record)
 
-    val blocksToMerge = files.map(Block(_))
-    val outputBuffer = Buffer[Record]()
-    val finalResultPathAllocator =
-      new utils.FileNameAllocator(targetDir, "partition")
+    val recordsBuffer = Buffer[Record]()
+    while (recordsPriorityQueue.nonEmpty) {
+      val smallestRecord = recordsPriorityQueue.dequeue()
+      recordsBuffer += smallestRecord
 
-    while (blocksToMerge.forall(!_.exhausted())) {
-      val largestHead = findBlockWithSmallestHead(blocksToMerge)
-      outputBuffer += largestHead.advance()
-
-      if (outputBuffer.size == Block.size) {
-        val finalResultPath = finalResultPathAllocator.allocate()
-        os.write(finalResultPath, outputBuffer.map(_.toArray()))
-        outputBuffer.clear()
-        finalResultPaths = finalResultPaths.appended(finalResultPath)
-      }
+      if (recordsBuffer.size == Block.size)
+        writtenBlocks += recordsBuffer.writeIntoDisk(nextFilePath)
     }
 
-    val remainingResultPath = finalResultPathAllocator.allocate()
-    os.write(remainingResultPath, outputBuffer.map(_.toArray()))
-    remainingResultPath +: finalResultPaths
+    if (!recordsBuffer.isEmpty)
+      writtenBlocks += recordsBuffer.writeIntoDisk(nextFilePath)
+    writtenBlocks.toSeq
   }
 
-  private def findBlockWithSmallestHead(blocks: Seq[Block]): Block = {
-    val notExhuasted = blocks.filter(!_.exhausted())
-    notExhuasted.minBy(_.contents.head)
+  private def nextFilePath: os.Path = {
+    val result = targetDir / s"partition.${nextFinalFileNumber}"
+    nextFinalFileNumber += 1
+    result
   }
 }

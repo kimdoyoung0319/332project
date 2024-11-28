@@ -1,6 +1,7 @@
 package worker
 
 import java.io.FilenameFilter
+import utils.FileNameAllocator
 
 class WorkerClient(masterIp: String, masterPort: Int, outputDir: os.Path) {
   import proto.master._
@@ -10,6 +11,7 @@ class WorkerClient(masterIp: String, masterPort: Int, outputDir: os.Path) {
   import io.grpc.stub.StreamObserver
 
   var id: Int = -1
+
   private val stub =
     utils.makeStub(masterIp, masterPort)(MasterServiceGrpc.stub)
   private val logger = com.typesafe.scalalogging.Logger("worker")
@@ -28,14 +30,27 @@ class WorkerClient(masterIp: String, masterPort: Int, outputDir: os.Path) {
 
     assert(id != -1)
 
-    val temp = outputDir / "tmp"
+    val allocator = new FileNameAllocator(outputDir / "temp", "temp")
     val all = for (worker <- workers) yield {
       val reception = Promise[Seq[Block]]()
-      val observer = new RecordsObserver(reception)
+      val observer = new RecordsObserver(reception, allocator)
+
+      logger.info(
+        s"Worker #${id}: Starting shuffling with ${worker.id}..."
+      )
 
       worker.stub.demand(DemandRequest(id), observer)
       reception.future
     }
+
+    for (done <- all)
+      done.foreach { blocks =>
+        logger.info(
+          s"Worker #${id}: Shuffling with unknown worker finished. The received blocks are..."
+        )
+        for (block <- blocks)
+          logger.info(block.toString)
+      }
 
     /* Maps sequence of sequence of blocks into a single sequence of blocks. */
     Future.sequence(all).map { seqs =>
@@ -45,28 +60,28 @@ class WorkerClient(masterIp: String, masterPort: Int, outputDir: os.Path) {
 
   def sort(inputs: Seq[Block]): Future[Unit] = {
     import utils.globalContext
-    val sorter = new Sorter(inputs.map(_.path), outputDir)
+    val sorter = new Sorter(inputs, outputDir)
 
-    sorter.run().map { files =>
+    sorter.run().map { blocks =>
       logger.info("Sorting finished. The path for the output blocks are...")
-      for (file <- files)
-        logger.info(file.toString())
+      for (block <- blocks)
+        logger.info(block.path.toString())
     }
   }
 
-  class RecordsObserver(reception: Promise[Seq[Block]])
-      extends StreamObserver[RecordMessage] {
+  class RecordsObserver(
+      reception: Promise[Seq[Block]],
+      allocator: utils.FileNameAllocator
+  ) extends StreamObserver[RecordMessage] {
 
     import common.Block
 
     val maxElems = Block.size / Record.length
-    val allocator = new utils.FileNameAllocator(outputDir / "temp", "temp")
     /* TODO: Rewrite this using scala.collections.mutable.Buffer. */
     var buffer: Array[Record] = Array()
     var blocks: Seq[Block] = Nil
 
     def onNext(msg: RecordMessage): Unit = {
-
       buffer = buffer :+ Record.fromMessage(msg)
 
       if (buffer.size == maxElems) {

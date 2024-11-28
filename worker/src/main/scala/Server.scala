@@ -14,6 +14,8 @@ class WorkerService(blocks: Seq[Block], client: WorkerClient)
   var received: Seq[Block] = null
   var idToRange: Map[Int, (Vector[Byte], Vector[Byte])] = null
 
+  val logger = com.typesafe.scalalogging.Logger("worker")
+
   override def sample(request: Empty): Future[SampleResponse] = Future {
     /* This routine assumes that each blocks are at most 32 MiB. */
     /* TODO: Enforce mimimum sample size. (Currently, the sample size varies
@@ -22,8 +24,12 @@ class WorkerService(blocks: Seq[Block], client: WorkerClient)
     SampleResponse(sample = sample)
   }
 
-  override def shuffle(request: ShuffleRequest): Future[Empty] = Future {
+  override def shuffle(request: ShuffleRequest): Future[Empty] = {
     import common.Record
+    import scala.concurrent.Promise
+    import utils.{ByteStringExtended, ByteVectorExtended}
+
+    logger.info(s"Worker #${client.id}: Starting shuffling phase...")
 
     val workers =
       for ((id, msg) <- request.idToWorker.toSeq)
@@ -34,19 +40,23 @@ class WorkerService(blocks: Seq[Block], client: WorkerClient)
        demand() and idToRange is still null? */
     val ranges =
       for ((id, msg) <- request.idToWorker.toSeq) yield {
-        assert(msg.start.size == Record.length)
-        assert(msg.end.size == Record.length)
+        assert(msg.start.size == 10)
+        assert(msg.end.size == 10)
 
-        val start = Record(msg.start.toByteArray())
-        val end = Record(msg.end.toByteArray())
+        val start = msg.start.toByteVector
+        val end = msg.end.toByteVector
 
         (id, start until end)
       }
 
     idToRange = ranges.toMap
-    client.collect(workers).foreach { blocks => received = blocks }
 
-    Empty()
+    val done = Promise[Empty]()
+    client.collect(workers).foreach { blocks =>
+      received = blocks; done.success(Empty())
+    }
+
+    done.future
   }
 
   override def demand(
