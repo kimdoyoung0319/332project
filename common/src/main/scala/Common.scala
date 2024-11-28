@@ -14,8 +14,6 @@ package object common {
       RecordMessage(content = ByteString.copyFrom(toArray()))
     }
 
-    def until(that: Record): (Vector[Byte], Vector[Byte]) = (this.key, that.key)
-
     override def toString(): String = {
       import utils.ByteVectorExtended
       key.toHexString() ++ " " ++ value.toHexString()
@@ -68,6 +66,8 @@ package object common {
       chunks(path, Record.length).drop(pos).map { case (arr, _) => Record(arr) }
     }
 
+    override def toString(): String = s"Block(${path.toString()})"
+
     def load(): Seq[Record] = contents.toSeq
 
     def sorted(path: os.Path): Block = Block.fromSeq(load().sorted, path)
@@ -109,14 +109,14 @@ package object common {
        Block object that refers to it. */
     def fromArr(arr: Array[Record], path: Path): Block = {
       val src = arr.flatMap(_.toVector()).toArray
-      write(path, src)
+      write(path, src, createFolders = true)
       new Block(path)
     }
 
     /* Make a new Block object from a path to a file that already exists. The
      path must exist in the disk. */
     def apply(path: Path): Block = {
-      assert(exists(path))
+      assert(exists(path), s"${path.toString} does not exist.")
       new Block(path)
     }
   }
