@@ -59,11 +59,14 @@ package object common {
     if (!os.exists(path))
       removed.success(())
 
-    val contents: Generator[Record] = {
+    val contentsSource: Generator[Record] = {
       import os.read.chunks
-
-      assert(!removed.isCompleted)
       chunks(path, Record.length).drop(pos).map { case (arr, _) => Record(arr) }
+    }
+
+    def contents: Generator[Record] = {
+      assert(!removed.isCompleted)
+      contentsSource
     }
 
     override def toString(): String = s"Block(${path.toString()})"
@@ -94,6 +97,7 @@ package object common {
   /* Companion object for Block. */
   object Block {
     import os.{Path, temp, write, exists}
+    import scala.collection.mutable.Buffer
 
     val size = 32 * 1024 * 1024
 
@@ -108,10 +112,16 @@ package object common {
     /* Writes the array of records into the file refered by path and returns new
        Block object that refers to it. */
     def fromArr(arr: Array[Record], path: Path): Block = {
-      val src = arr.flatMap(_.toVector()).toArray
-      write(path, src, createFolders = true)
+      import utils.RecordsArrayExtended
+
+      write(path, arr.serialized, createFolders = true)
       new Block(path)
     }
+
+    /* Writes the buffer of records into the file refered by path and returns
+       new Block object that refers to it. */
+    def fromBuf(buf: Buffer[Record], path: Path): Block =
+      fromArr(buf.toArray, path)
 
     /* Make a new Block object from a path to a file that already exists. The
      path must exist in the disk. */

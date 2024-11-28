@@ -30,6 +30,8 @@ class WorkerClient(masterIp: String, masterPort: Int, outputDir: os.Path) {
 
     assert(id != -1)
 
+    utils.cleanDirectory(outputDir / "temp")
+
     val allocator = new FileNameAllocator(outputDir / "temp", "temp")
     val all = for (worker <- workers) yield {
       val reception = Promise[Seq[Block]]()
@@ -74,25 +76,25 @@ class WorkerClient(masterIp: String, masterPort: Int, outputDir: os.Path) {
       allocator: utils.FileNameAllocator
   ) extends StreamObserver[RecordMessage] {
 
-    import common.Block
+    import common.{Block, Record}
+    import scala.collection.mutable.{Buffer, ListBuffer}
 
-    val maxElems = Block.size / Record.length
-    /* TODO: Rewrite this using scala.collections.mutable.Buffer. */
-    var buffer: Array[Record] = Array()
-    var blocks: Seq[Block] = Nil
+    val recordsPerBlock = Block.size / Record.length
+    val recordsBuffer: Buffer[Record] = Buffer[Record]()
+    val receivedBlocks: ListBuffer[Block] = ListBuffer[Block]()
 
     def onNext(msg: RecordMessage): Unit = {
-      buffer = buffer :+ Record.fromMessage(msg)
+      recordsBuffer += Record.fromMessage(msg)
 
-      if (buffer.size == maxElems) {
-        blocks = blocks :+ Block.fromArr(buffer, allocator.allocate())
-        buffer = Array()
+      if (recordsBuffer.size == recordsPerBlock) {
+        receivedBlocks += Block.fromBuf(recordsBuffer, allocator.allocate())
+        recordsBuffer.clear()
       }
     }
 
     def onCompleted(): Unit = {
-      blocks = blocks :+ Block.fromArr(buffer, allocator.allocate())
-      reception.success(blocks)
+      receivedBlocks += Block.fromBuf(recordsBuffer, allocator.allocate())
+      reception.success(receivedBlocks.toSeq)
     }
 
     def onError(exception: Throwable) = reception.failure(exception)

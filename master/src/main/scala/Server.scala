@@ -57,7 +57,7 @@ class MasterServer(workerCount: Int) {
 
   println(s"${utils.thisIp}:${server.getPort}")
 
-  /* TODO: Add invariants for each completion of states. */
+  /* TODO: Add invariants for each completion of phases. */
   /* Registration phase callback function. */
   service.registration.future.foreach { case _ =>
     logger.info("All workers have established connections.")
