@@ -3,17 +3,21 @@ package object utils {
      shorthand. */
   val thisIp: String = java.net.InetAddress.getLocalHost.getHostAddress
 
-  /* Minimum value of a key. Looks braindead, but could not come up with better
-     solution. */
-  val minKey: Vector[Byte] = {
+  /* ByteString for minimum value of a key. Looks braindead, but could not come
+     up with better solution. */
+  val minKeyString: com.google.protobuf.ByteString = {
     val zero = 0.toByte
-    Vector(zero, zero, zero, zero, zero, zero, zero, zero, zero, zero)
+    com.google.protobuf.ByteString.copyFrom(
+      Array(zero, zero, zero, zero, zero, zero, zero, zero, zero, zero)
+    )
   }
 
-  /* Maximum value of a key. */
-  val maxKey: Vector[Byte] = {
+  /* ByteString for maximum value of a key. */
+  val maxKeyString: com.google.protobuf.ByteString = {
     val ff = (-1).toByte
-    Vector(ff, ff, ff, ff, ff, ff, ff, ff, ff, ff)
+    com.google.protobuf.ByteString.copyFrom(
+      Array(ff, ff, ff, ff, ff, ff, ff, ff, ff, ff)
+    )
   }
 
   /* Global execution context to be used conveniently. */
@@ -33,6 +37,7 @@ package object utils {
       (record.key.compare(from) >= 0) && (to.compare(record.key) > 0)
   }
 
+  /* Auxiliary methods for arrays of bytes. */
   implicit class RecordsArrayExtended(recordsArray: Array[common.Record]) {
     def serialized: Array[Byte] =
       for (record <- recordsArray; byte <- record.toVector()) yield byte
@@ -149,14 +154,33 @@ package object utils {
   }
 
   /* Thread-safe allocator for filenames under path with base filename. */
-  class FileNameAllocator(path: os.Path, base: String) {
+  class ThreadSafeNameAllocator(path: os.Path, base: String) {
     var counter = 0
 
-    def allocate(): os.Path = synchronized {
+    def allocate(): os.Path = this.synchronized {
       val result = path / s"${base}.${counter}"
       counter += 1
       result
     }
+  }
+
+  /* Thread-safe mutable list. */
+  class ThreadSafeMutableList[T](seq: Seq[T]) {
+    import scala.collection.mutable.ListBuffer
+
+    private val mutableList = ListBuffer.from(seq)
+
+    def append(elem: T): Unit = mutableList.synchronized {
+      mutableList += (elem)
+    }
+
+    def +=(elem: T): Unit = append(elem)
+
+    def toSeq: Seq[T] = mutableList.synchronized(mutableList.toSeq)
+  }
+
+  object ThreadSafeMutableList {
+    def apply[T]() = new ThreadSafeMutableList[T](Seq.empty)
   }
 
   /* Prints the key of each records, wating action between each records.

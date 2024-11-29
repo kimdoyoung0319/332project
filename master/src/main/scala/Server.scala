@@ -1,19 +1,16 @@
 package master
 
-/* TODO: Clean up global namespace of this module. */
-import proto.master._
-import proto.worker.SampleResponse
-import proto.worker.ShuffleRequest
-
-class MasterService(workerCount: Int) extends MasterServiceGrpc.MasterService {
+class MasterService(workerCount: Int)
+    extends proto.master.MasterServiceGrpc.MasterService {
+  import proto.master._
   import proto.common.Empty
-  import proto.worker.SampleResponse
+  import proto.worker.{SampleResponse, ShuffleRequest}
   import scala.concurrent.{Future, Promise}
   import utils.globalContext
+  import collection.mutable.ListBuffer
   import common.Worker
 
-  /* TODO: Rewrite this using Future. */
-  var workers: Seq[Worker] = Nil
+  val workers = ListBuffer[Worker]()
   var nextId: Int = 0
 
   val logger = com.typesafe.scalalogging.Logger("master")
@@ -31,7 +28,7 @@ class MasterService(workerCount: Int) extends MasterServiceGrpc.MasterService {
 
       val (ip, port) = (request.ip, request.port)
       val worker = Worker(nextId, ip, port)
-      workers = workers.appended(worker)
+      workers += worker
       nextId += 1
 
       if (workers.size == workerCount)
@@ -48,6 +45,8 @@ class MasterServer(workerCount: Int) {
   import utils.globalContext
   import scala.concurrent.Future
   import proto.common.Empty
+  import proto.master._
+  import proto.worker.SampleResponse
 
   private val logger = com.typesafe.scalalogging.Logger("master")
   private val service = new MasterService(workerCount)
@@ -66,7 +65,7 @@ class MasterServer(workerCount: Int) {
       println(s"Worker #${worker.id}: ${worker.ip}:${worker.port}.")
       worker.stub.sample(Empty())
     }
-    service.sampling.completeWith(Future.sequence(all))
+    service.sampling.completeWith(Future.sequence(all.toSeq))
   }
 
   /* Sampling phase callback function. */
@@ -79,7 +78,7 @@ class MasterServer(workerCount: Int) {
     val samples = responses.toRecords()
     val partitions = partition(samples)
     val request = ShuffleRequest(partitions)
-    val all = for (worker <- service.workers) yield worker.stub.shuffle(request)
+    val all = for (worker <- service.workers) yield worker.stub.sort(request)
 
     Future.sequence(all).onComplete {
       case Success(_) => service.shuffling.success(())
@@ -129,27 +128,29 @@ class MasterServer(workerCount: Int) {
 
     import proto.worker.ShuffleRequest.WorkerMessage
     import com.google.protobuf.ByteString
-    import utils.ByteStringExtended
-    import utils.ByteVectorExtended
+    import utils.{ByteStringExtended, ByteVectorExtended}
 
-    /* This routine assumes that all IDs of the workers are not duplicated and
-       have consecutive values. i.e. There must not be any unassigned ID values
-       within the ID range. */
+    def allIdAllocated: Boolean =
+      (0 until workerCount).forall { id => service.workers.exists(_.id == id) }
+
+    assert(
+      allIdAllocated,
+      s"All IDs from 0 to ${workerCount} should be allocated to some worker."
+    )
+
     val sorted = samples.sorted
     val offset = samples.size / workerCount
     val seq = for (worker <- service.workers) yield {
-      import utils.{maxKey, minKey}
+      import utils.{maxKeyString, minKeyString}
 
-      /* TODO: Refactor this. */
+      val lastId = workerCount - 1
+      def idKeyString(id: Int): ByteString =
+        sorted(id * offset).key.toByteString()
+
       val (start, end) = worker.id match {
-        case 0 => (minKey.toByteString(), sorted(offset).key.toByteString())
-        case id if id == (workerCount - 1) =>
-          (sorted(worker.id * offset).key.toByteString(), maxKey.toByteString())
-        case id =>
-          (
-            sorted(worker.id * offset).key.toByteString(),
-            sorted((worker.id + 1) * offset).key.toByteString()
-          )
+        case 0 => (minKeyString, idKeyString(1))
+        case id if id == lastId => (idKeyString(id), maxKeyString)
+        case id => (idKeyString(id), idKeyString(id + 1))
       }
 
       logger.info(

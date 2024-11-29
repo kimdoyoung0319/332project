@@ -1,4 +1,3 @@
-/* TODO: Clean up global namespace of this module. */
 import org.scalatest.funsuite.AnyFunSuite
 
 class SortingSuite extends AnyFunSuite {

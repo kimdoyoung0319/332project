@@ -87,7 +87,8 @@ package object common {
 
     def exhausted(): Boolean = pos >= contents.count()
 
-    /* Warning! Invoking this method on wrong block may have severe impact. */
+    /* Warning! Invoking this method on wrong block may have devastating
+       impact. */
     def remove(): Unit = {
       removed.success(())
       os.remove(path)
@@ -103,11 +104,8 @@ package object common {
 
     /* Writes the sequence of records into the file refered by path and returns
        new Block object that refers to it. */
-    def fromSeq(seq: Seq[Record], path: Path): Block = {
-      val src = seq.flatMap(_.toVector()).toArray
-      write(path, src)
-      new Block(path)
-    }
+    def fromSeq(seq: Seq[Record], path: Path): Block =
+      fromArr(seq.toArray, path)
 
     /* Writes the array of records into the file refered by path and returns new
        Block object that refers to it. */

@@ -1,7 +1,7 @@
 package worker
 
 import java.io.FilenameFilter
-import utils.FileNameAllocator
+import utils.ThreadSafeNameAllocator
 
 class WorkerClient(masterIp: String, masterPort: Int, outputDir: os.Path) {
   import proto.master._
@@ -32,7 +32,7 @@ class WorkerClient(masterIp: String, masterPort: Int, outputDir: os.Path) {
 
     utils.cleanDirectory(outputDir / "temp")
 
-    val allocator = new FileNameAllocator(outputDir / "temp", "temp")
+    val allocator = new ThreadSafeNameAllocator(outputDir / "temp", "temp")
     val all = for (worker <- workers) yield {
       val reception = Promise[Seq[Block]]()
       val observer = new RecordsObserver(reception, allocator)
@@ -60,20 +60,16 @@ class WorkerClient(masterIp: String, masterPort: Int, outputDir: os.Path) {
     }
   }
 
-  def sort(inputs: Seq[Block]): Future[Unit] = {
+  def sort(inputs: Seq[Block]): Future[Seq[Block]] = {
     import utils.globalContext
-    val sorter = new Sorter(inputs, outputDir)
 
-    sorter.run().map { blocks =>
-      logger.info("Sorting finished. The path for the output blocks are...")
-      for (block <- blocks)
-        logger.info(block.path.toString())
-    }
+    val sorter = new Sorter(inputs, outputDir)
+    sorter.runSortingOnly()
   }
 
   class RecordsObserver(
       reception: Promise[Seq[Block]],
-      allocator: utils.FileNameAllocator
+      allocator: utils.ThreadSafeNameAllocator
   ) extends StreamObserver[RecordMessage] {
 
     import common.{Block, Record}

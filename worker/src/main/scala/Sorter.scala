@@ -47,6 +47,7 @@ class Sorter(inputBlocks: Seq[common.Block], targetDir: os.Path) {
   var nextFinalFileNumber = 0
 
   def run(): Future[Seq[Block]] = sortAll().map(merge)
+  def runSortingOnly(): Future[Seq[Block]] = sortAll()
   def runMergingOnly(): Future[Seq[Block]] = Future(merge(inputBlocks))
 
   private val sortedFilesTargetDir = targetDir / "sorted"
@@ -55,12 +56,12 @@ class Sorter(inputBlocks: Seq[common.Block], targetDir: os.Path) {
     utils.cleanDirectory(sortedFilesTargetDir)
 
     val sortedFileNameAllocator =
-      new utils.FileNameAllocator(sortedFilesTargetDir, "sorted")
+      new utils.ThreadSafeNameAllocator(sortedFilesTargetDir, "sorted")
     Future.sequence(inputBlocks.map(sortOneAndRemove(sortedFileNameAllocator)))
   }
 
   private def sortOneAndRemove(
-      fileNameAllocator: utils.FileNameAllocator
+      fileNameAllocator: utils.ThreadSafeNameAllocator
   )(block: common.Block): Future[Block] = Future {
     val sortedFileName = fileNameAllocator.allocate()
     val resultBlock = block.sorted(sortedFileName)

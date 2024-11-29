@@ -3,16 +3,23 @@ package worker
 import proto.worker._
 import common.Block
 
-class WorkerService(blocks: Seq[Block], client: WorkerClient)
-    extends WorkerServiceGrpc.WorkerService {
+class WorkerService(
+    inputBlocks: Seq[Block],
+    client: WorkerClient,
+    outputDir: os.Path
+) extends WorkerServiceGrpc.WorkerService {
   import proto.common.{Empty, RecordMessage}
   import scala.concurrent.Future
+  import scala.collection.mutable.ListBuffer
   import utils.globalContext
-  import common.Worker
+  import common.{Worker, Record}
   import io.grpc.stub.StreamObserver
 
-  var received: Seq[Block] = null
+  val receivedBlocks = utils.ThreadSafeMutableList[Block]()
+  /* TODO: Change this to use val. */
   var idToRange: Map[Int, (Vector[Byte], Vector[Byte])] = null
+  val receivedNameAllocator =
+    new utils.ThreadSafeNameAllocator(outputDir / "received", "received")
 
   val logger = com.typesafe.scalalogging.Logger("worker")
 
@@ -35,9 +42,9 @@ class WorkerService(blocks: Seq[Block], client: WorkerClient)
       for ((id, msg) <- request.idToWorker.toSeq)
         yield Worker(id, msg.ip, msg.port)
 
-    /* What happens if the construction is not yet finished, but another worker
-       demands records from this? i.e. What happens if another worker calls
-       demand() and idToRange is still null? */
+    /* TODO: What happens if the construction is not yet finished, but another
+       worker demands records from this? i.e. What happens if another worker
+       calls demand() and idToRange is still null? */
     val ranges =
       for ((id, msg) <- request.idToWorker.toSeq) yield {
         assert(msg.start.size == 10)
@@ -53,7 +60,7 @@ class WorkerService(blocks: Seq[Block], client: WorkerClient)
 
     val done = Promise[Empty]()
     client.collect(workers).foreach { blocks =>
-      received = blocks; done.success(Empty())
+      blocks.foreach { receivedBlocks += _ }; done.success(Empty())
     }
 
     done.future
@@ -68,8 +75,8 @@ class WorkerService(blocks: Seq[Block], client: WorkerClient)
 
     assert(idToRange != null)
 
-    /* TODO: Fix the error that a worker machine fails to send demanded records
-             properly. */
+    /* TODO: Change this to send individual files separately. (Streaming causes
+             OOM!) */
     for {
       block <- blocks; record <- block.contents
       if idToRange(request.id).contains(record)
@@ -80,15 +87,30 @@ class WorkerService(blocks: Seq[Block], client: WorkerClient)
   }
 
   override def sort(request: Empty): Future[Empty] =
-    client.sort(received).map { case _ => Empty() }
+    client.sort(receivedBlocks.toSeq).map { case _ => Empty() }
+
+  override def send(request: SendRequest): Future[Empty] = Future {
+    assert(request.size == request.partition.size)
+
+    val records = request.partition.map(Record.fromMessage(_))
+    receivedBlocks += Block.fromSeq(records, receivedNameAllocator.allocate())
+
+    Empty()
+  }
+
+  def merge(request: Empty): Future[Empty] = ???
 }
 
-class WorkerServer(blocks: Seq[Block], client: WorkerClient) {
+class WorkerServer(
+    blocks: Seq[Block],
+    client: WorkerClient,
+    outputDir: os.Path
+) {
   import utils.globalContext
   import io.grpc.ServerBuilder
 
   private val server =
-    utils.makeServer(new WorkerService(blocks, client))(
+    utils.makeServer(new WorkerService(blocks, client, outputDir))(
       WorkerServiceGrpc.bindService
     )
 
