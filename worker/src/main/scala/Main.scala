@@ -14,7 +14,7 @@ object Main {
     val blocks = identifyBlocks(inputDirs)
 
     val client = new WorkerClient(masterIp, masterPort, outputDir)
-    val server = new WorkerServer(blocks, client)
+    val server = new WorkerServer(blocks, client, outputDir)
 
     client.register(server.port).onComplete {
       case Success(id) =>

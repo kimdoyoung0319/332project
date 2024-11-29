@@ -8,7 +8,9 @@ service WorkerService {
   rpc Sample(Empty) returns (SampleResponse) {}
   rpc Shuffle(ShuffleRequest) returns (Empty) {}
   rpc Demand(DemandRequest) returns (stream RecordMessage) {}
+  rpc Send(SendRequest) returns (Empty) {}
   rpc Sort(Empty) returns (Empty) {}
+  rpc Merge(Empty) returns (Empty) {}
 }
 
 message SampleResponse {
@@ -28,4 +30,9 @@ message ShuffleRequest {
 
 message DemandRequest {
   int32 id = 1;
+}
+
+message SendRequest {
+  int32 size = 1;
+  repeated RecordMessage partition = 2;
 }
