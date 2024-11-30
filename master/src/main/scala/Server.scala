@@ -1,10 +1,12 @@
 package master
+import scala.util.Failure
+import org.scalactic.Fail
 
 class MasterService(workerCount: Int)
     extends proto.master.MasterServiceGrpc.MasterService {
   import proto.master._
   import proto.common.Empty
-  import proto.worker.{SampleResponse, ShuffleRequest}
+  import proto.worker.SampleResponse
   import scala.concurrent.{Future, Promise}
   import utils.globalContext
   import collection.mutable.ListBuffer
@@ -14,11 +16,14 @@ class MasterService(workerCount: Int)
   var nextId: Int = 0
 
   val logger = com.typesafe.scalalogging.Logger("master")
+
   val registration = Promise[Unit]()
   val sampling = Promise[Seq[SampleResponse]]()
   val shuffling = Promise[Unit]()
   val sorting = Promise[Unit]()
+  val merging = Promise[Unit]()
 
+  /* TODO: Rewrite this in thread-safe manner. */
   override def register(request: RegisterRequest): Future[RegisterReply] =
     Future {
       import proto.worker.WorkerServiceGrpc
@@ -44,6 +49,7 @@ class MasterServer(workerCount: Int) {
   import common.Record
   import utils.globalContext
   import scala.concurrent.Future
+  import scala.util.{Success, Failure}
   import proto.common.Empty
   import proto.master._
   import proto.worker.SampleResponse
@@ -58,60 +64,84 @@ class MasterServer(workerCount: Int) {
 
   /* TODO: Add invariants for each completion of phases. */
   /* Registration phase callback function. */
-  service.registration.future.foreach { case _ =>
+  service.registration.future.foreach { _ =>
+    import scala.util.{Success, Failure}
+
+    assert(service.workers.size == workerCount)
     logger.info("All workers have established connections.")
 
-    val all = for (worker <- service.workers) yield {
-      println(s"Worker #${worker.id}: ${worker.ip}:${worker.port}.")
-      worker.stub.sample(Empty())
+    val all = for (worker <- service.workers) yield worker.stub.sample(Empty())
+
+    Future.sequence(all.toSeq).onComplete {
+      case Success(value) => service.sampling.success(value)
+      case Failure(exception) => throw exception
     }
-    service.sampling.completeWith(Future.sequence(all.toSeq))
   }
 
   /* Sampling phase callback function. */
   service.sampling.future.foreach { responses =>
-    import proto.worker.ShuffleRequest
+    import proto.worker.InformRequest
     import scala.util.{Success, Failure}
 
-    logger.info("All samples have been collected. ")
+    val samples =
+      for (response <- responses; message <- response.sample)
+        yield Record.fromMessage(message)
 
-    val samples = responses.toRecords()
-    val partitions = partition(samples)
-    val request = ShuffleRequest(partitions)
-    val all = for (worker <- service.workers) yield worker.stub.sort(request)
+    val idToWorker = partition(samples)
 
-    Future.sequence(all).onComplete {
+    val allInformed = Future.sequence {
+      for (worker <- service.workers)
+        yield worker.stub.inform(InformRequest(idToWorker))
+    }
+
+    /* TODO: Is there any way to refactor this? */
+    allInformed.foreach { _ =>
+      val allSorted = Future.sequence {
+        for (worker <- service.workers) yield worker.stub.sort(Empty())
+      }
+
+      logger.info("Informed worker informations to all workers.")
+      allSorted.onComplete {
+        case Success(_) => service.sorting.success(())
+        case Failure(exception) => throw exception
+      }
+    }
+  }
+
+  /* Sorting phase callback function. */
+  service.sorting.future.foreach { _ =>
+    val all = Future.sequence {
+      for (worker <- service.workers) yield worker.stub.shuffle(Empty())
+    }
+
+    all.onComplete {
       case Success(_) => service.shuffling.success(())
-      case Failure(e) => throw e
+      case Failure(exception) => throw exception
     }
   }
 
   /* Shuffling phase callback function. */
-  service.shuffling.future.foreach { case _ =>
-    logger.info("Shuffling phase has been finished.")
+  service.shuffling.future.foreach { _ =>
+    val all = for (worker <- service.workers) yield worker.stub.merge(Empty())
 
-    val all = for (worker <- service.workers) yield worker.stub.sort(Empty())
-
-    Future.sequence(all).foreach { case _ => service.sorting.success(()) }
+    Future.sequence(all).onComplete {
+      case Success(_) => service.merging.success(())
+      case Failure(exception) => throw exception
+    }
   }
 
-  /* Sorting phase callback function. */
-  service.sorting.future.foreach { case _ =>
+  /* Merging phase callback function. */
+  service.merging.future.foreach { _ =>
     logger.info(
-      "The whole procedure has been finished. The order of the workers is..."
+      "All procedure has been finished. The order of the workers is..."
     )
 
-    /* According to partition() method, the order of IDs is identical with
-       the order of the records in the worker. This routine assumes that the
-       IDs in range [0, workerCount) are all assigned. */
-    for (id <- 0 until workerCount) {
-      val worker = service.workers.find(_.id == id).get
-
-      printf(s"${worker.ip} ")
-      logger.info(s"${worker.id}: ${worker.ip}")
+    for (worker <- service.workers.sortBy(_.id)) {
+      println(worker.ip)
+      logger.info(worker.ip)
     }
 
-    server.shutdown()
+    logger.info("Shutting down...")
   }
 
   def await(): Unit = server.awaitTermination()
@@ -124,9 +154,9 @@ class MasterServer(workerCount: Int) {
 
   private def partition(
       samples: Seq[Record]
-  ): Map[Int, proto.worker.ShuffleRequest.WorkerMessage] = {
+  ): Map[Int, proto.worker.InformRequest.WorkerMessage] = {
 
-    import proto.worker.ShuffleRequest.WorkerMessage
+    import proto.worker.InformRequest.WorkerMessage
     import com.google.protobuf.ByteString
     import utils.{ByteStringExtended, ByteVectorExtended}
 
@@ -140,27 +170,29 @@ class MasterServer(workerCount: Int) {
 
     val sorted = samples.sorted
     val offset = samples.size / workerCount
-    val seq = for (worker <- service.workers) yield {
-      import utils.{maxKeyString, minKeyString}
+    val seq =
+      for (worker <- service.workers) yield {
+        import utils.{maxKeyString, minKeyString}
 
-      val lastId = workerCount - 1
-      def idKeyString(id: Int): ByteString =
-        sorted(id * offset).key.toByteString()
+        val lastId = workerCount - 1
+        def idKeyString(id: Int): ByteString =
+          sorted(id * offset).key.toByteString()
 
-      val (start, end) = worker.id match {
-        case 0 => (minKeyString, idKeyString(1))
-        case id if id == lastId => (idKeyString(id), maxKeyString)
-        case id => (idKeyString(id), idKeyString(id + 1))
+        val (start, end) = worker.id match {
+          case 0 => (minKeyString, idKeyString(1))
+          case id if id == lastId => (idKeyString(id), maxKeyString)
+          case id => (idKeyString(id), idKeyString(id + 1))
+        }
+
+        logger.info(
+          s"Partition for ${worker.id} is [${start.toHexString}, ${end.toHexString})."
+        )
+
+        val workerMessage =
+          WorkerMessage(ip = worker.ip, port = worker.port, start, end)
+        (worker.id, workerMessage)
       }
-
-      logger.info(
-        s"Partition for ${worker.id} is [${start.toHexString}, ${end.toHexString})."
-      )
-
-      worker.toMapping(start, end)
-    }
 
     seq.toMap
   }
-
 }

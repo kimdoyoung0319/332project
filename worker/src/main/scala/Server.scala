@@ -2,119 +2,206 @@ package worker
 
 import proto.worker._
 import common.Block
+import scala.util.Failure
 
 class WorkerService(
     inputBlocks: Seq[Block],
-    client: WorkerClient,
     outputDir: os.Path
 ) extends WorkerServiceGrpc.WorkerService {
   import proto.common.{Empty, RecordMessage}
-  import scala.concurrent.Future
+  import scala.concurrent.{Future, Promise}
   import scala.collection.mutable.ListBuffer
   import utils.globalContext
   import common.{Worker, Record}
   import io.grpc.stub.StreamObserver
 
+  type WorkerWithRange = (Worker, (Vector[Byte], Vector[Byte]))
+  type BlockPartition = Map[Int, (Int, Int)]
+
+  val logger = com.typesafe.scalalogging.Logger("worker")
   val receivedBlocks = utils.ThreadSafeMutableList[Block]()
-  /* TODO: Change this to use val. */
-  var idToRange: Map[Int, (Vector[Byte], Vector[Byte])] = null
+  val sortedBlocks = Promise[Seq[Block]]()
+  val workers = Promise[Seq[WorkerWithRange]]()
+  val thisId = Promise[Int]()
   val receivedNameAllocator =
     new utils.ThreadSafeNameAllocator(outputDir / "received", "received")
 
-  val logger = com.typesafe.scalalogging.Logger("worker")
-
   override def sample(request: Empty): Future[SampleResponse] = Future {
-    /* This routine assumes that each blocks are at most 32 MiB. */
+    /* This routine assumes that each blocks is at most 32 MiB. */
     /* TODO: Enforce mimimum sample size. (Currently, the sample size varies
              according to the number of blocks.) */
-    val sample = for (block <- blocks) yield block.sample().toMessage()
+    val sample =
+      for (inputBlock <- inputBlocks) yield inputBlock.sample().toMessage()
     SampleResponse(sample = sample)
   }
 
-  override def shuffle(request: ShuffleRequest): Future[Empty] = {
-    import common.Record
-    import scala.concurrent.Promise
-    import utils.{ByteStringExtended, ByteVectorExtended}
+  override def inform(request: InformRequest): Future[Empty] = Future {
+    import utils.ByteStringExtended
+    import utils.PromiseExtended
 
-    logger.info(s"Worker #${client.id}: Starting shuffling phase...")
+    val workersWithRange = request.idToWorker.map { case (id, message) =>
+      val range = (message.start.toByteVector, message.end.toByteVector)
+      val worker = Worker(id = id, ip = message.ip, port = message.port)
+      (worker, range)
+    }.toSeq
 
-    val workers =
-      for ((id, msg) <- request.idToWorker.toSeq)
-        yield Worker(id, msg.ip, msg.port)
+    logger.info(
+      s"Worker #${thisId()}: Received worker informations from the master."
+    )
 
-    /* TODO: What happens if the construction is not yet finished, but another
-       worker demands records from this? i.e. What happens if another worker
-       calls demand() and idToRange is still null? */
-    val ranges =
-      for ((id, msg) <- request.idToWorker.toSeq) yield {
-        assert(msg.start.size == 10)
-        assert(msg.end.size == 10)
+    workers.success(workersWithRange)
+    Empty()
+  }
 
-        val start = msg.start.toByteVector
-        val end = msg.end.toByteVector
+  override def shuffle(request: Empty): Future[Empty] = {
+    import utils.PromiseExtended
 
-        (id, start until end)
+    assert(sortedBlocks.isCompleted)
+
+    val blockPartitionMap = partitionAll(sortedBlocks())
+    val all =
+      for ((worker, _) <- workers())
+        yield sendBlockTo(blockPartitionMap)(worker)
+    val finished = Future.sequence(all)
+
+    finished.map { _ => Empty() }
+  }
+
+  override def sort(request: Empty): Future[Empty] = Future {
+    import scala.util.{Success, Failure}
+
+    val sortedNameAllocator =
+      new utils.ThreadSafeNameAllocator(outputDir / "sorted", "sorted")
+
+    val blocks = Future.sequence {
+      inputBlocks.map { block =>
+        Future(block.sorted(sortedNameAllocator.allocate()))
       }
-
-    idToRange = ranges.toMap
-
-    val done = Promise[Empty]()
-    client.collect(workers).foreach { blocks =>
-      blocks.foreach { receivedBlocks += _ }; done.success(Empty())
     }
 
-    done.future
-  }
-
-  override def demand(
-      request: DemandRequest,
-      observer: StreamObserver[RecordMessage]
-  ): Unit = {
-
-    import utils.RecordRange
-
-    assert(idToRange != null)
-
-    /* TODO: Change this to send individual files separately. (Streaming causes
-             OOM!) */
-    for {
-      block <- blocks; record <- block.contents
-      if idToRange(request.id).contains(record)
+    /* Throwing exception here? */
+    blocks.onComplete {
+      case Success(sorted) => sortedBlocks.success(sorted)
+      case Failure(exception) => throw exception
     }
-      observer.onNext(record.toMessage())
-
-    observer.onCompleted()
-  }
-
-  override def sort(request: Empty): Future[Empty] =
-    client.sort(receivedBlocks.toSeq).map { case _ => Empty() }
-
-  override def send(request: SendRequest): Future[Empty] = Future {
-    assert(request.size == request.partition.size)
-
-    val records = request.partition.map(Record.fromMessage(_))
-    receivedBlocks += Block.fromSeq(records, receivedNameAllocator.allocate())
 
     Empty()
   }
 
-  def merge(request: Empty): Future[Empty] = ???
+  override def send(request: SendRequest): Future[Empty] = Future {
+    assert(request.size == request.partition.size)
+
+    if (request.size != 0) {
+      val records = request.partition.map(Record.fromMessage(_))
+      receivedBlocks += Block.fromSeq(records, receivedNameAllocator.allocate())
+    }
+
+    Empty()
+  }
+
+  override def merge(request: Empty): Future[Empty] = {
+    val sorter = new Sorter(receivedBlocks.toSeq, outputDir)
+    sorter.runMergingOnly().map { _ => Empty() }
+  }
+
+  private def partition(block: Block): BlockPartition = {
+    import utils.PromiseExtended
+    import utils.RecordRange
+
+    val lastId = workers().size
+    val contents = block.contents
+    val lastIndex = contents.count()
+
+    var ranges = Seq[(Int, (Int, Int))]()
+    var currentId = 0
+    var currentIndex = 0
+
+    while (currentId <= lastId) {
+      val startIndex = currentIndex
+      val currentRange = workers().find(_._1.id == currentId).get._2
+
+      while (
+        !currentRange.contains(contents.drop(currentIndex).head)
+        && currentIndex <= lastIndex
+      )
+        currentIndex += 1
+
+      val endIndex = currentIndex
+      ranges = ranges.appended((currentId, (startIndex, endIndex)))
+    }
+
+    ranges.toMap
+  }
+
+  private def partitionAll(blocks: Seq[Block]): Map[Block, BlockPartition] = {
+    val partitions = for (block <- blocks) yield (block, partition(block))
+    partitions.toMap
+  }
+
+  private def sendBlockTo(partitionMap: Map[Block, BlockPartition])(
+      worker: Worker
+  ): Future[Unit] = {
+    import utils.PromiseExtended
+
+    val all = for (block <- sortedBlocks()) yield {
+      val range = partitionMap(block)(worker.id)
+      val size = range._2 - range._1
+      val partition =
+        block.contents.slice(range._1, range._2).toSeq.map(_.toMessage())
+      val request = SendRequest(size = size, partition)
+
+      worker.stub.send(request)
+    }
+
+    Future.sequence(all).map { _ => () }
+  }
 }
 
 class WorkerServer(
-    blocks: Seq[Block],
-    client: WorkerClient,
+    masterIp: String,
+    masterPort: Int,
+    inputBlocks: Seq[Block],
     outputDir: os.Path
 ) {
   import utils.globalContext
   import io.grpc.ServerBuilder
+  import scala.concurrent.Future
+  import scala.util.{Success, Failure}
 
-  private val server =
-    utils.makeServer(new WorkerService(blocks, client, outputDir))(
-      WorkerServiceGrpc.bindService
-    )
+  private val service = new WorkerService(inputBlocks, outputDir)
+  private val server = utils.makeServer(service)(WorkerServiceGrpc.bindService)
+  private val logger = com.typesafe.scalalogging.Logger("worker")
 
-  val port = server.getPort
+  logger.info(
+    s"Worker machine listening port number ${server.getPort()} started."
+  )
+
+  register(masterIp, masterPort).onComplete {
+    case Success(thisId) =>
+      logger.info(
+        s"Registration to master machine ${masterIp}:${masterPort} succeeded."
+      )
+      service.thisId.success(thisId)
+
+    case Failure(exception) =>
+      logger.info(
+        s"Registration to master machine has failed. Shutting down..."
+      )
+      server.shutdown()
+  }
+
+  private def register(masterIp: String, masterPort: Int): Future[Int] = {
+    import proto.master.{RegisterRequest, MasterServiceGrpc}
+
+    val masterStub =
+      utils.makeStub(masterIp, masterPort)(MasterServiceGrpc.stub)
+
+    masterStub
+      .register(RegisterRequest(ip = utils.thisIp, port = port))
+      .map(_.id)
+  }
+
+  lazy val port = server.getPort
 
   def stop(): Unit = server.shutdown()
 
