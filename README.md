@@ -67,6 +67,8 @@ Let's implement distrobuted sorting!
 </details>
 
 ### Week 7
+
+**Design changed:** So, the implementation plan below differs from our actual implementation.
 * Continue coding while commiting your code to your Git branch.
   - Implement the services defined in the proto file on the worker.
   - ~~**sorting phase:**~~
