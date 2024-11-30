@@ -49,7 +49,6 @@ Let's implement distrobuted sorting!
 * Discuss the issues you faced during your work.
 
 
-</details>
 
 ### Week 6
 * **Prepare for presentation!**
@@ -64,18 +63,17 @@ Let's implement distrobuted sorting!
     1. Master can send phase service.
     2. Each worker can performs different tasks based on the phase flag.
 
-<details>
-<summary> Milestones for next weeks </summary>
-  
+
+</details>
 
 ### Week 7
 * Continue coding while commiting your code to your Git branch.
   - Implement the services defined in the proto file on the worker.
-  - **sorting phase:**
-    1. A Worker can sort data in its disk. (Apache spark or DIY)
+  - ~~**sorting phase:**~~
+    1. ~~A Worker can sort data in its disk.~~(Design changed)
     2. Workers can send sample data to the master.
   - **sampling phase:**
-    1. Master can sort data in its disk too. (Apache spark or DIY)
+    1. ~~Master can sort data in its disk too.~~(Design changed)
     2. Master can distribute partitions.
   - **shuffling phase:**
     1. Workers can connect workers
@@ -86,6 +84,9 @@ Let's implement distrobuted sorting!
   - **merging phase:**
     1. Workers can merge multiple blocks into a single file while maintaining the order based on the keys.
 * Execute and debug the code.
+
+<details>
+<summary> Milestones for next weeks </summary>
 
 ### Week 8
 * Another debugging week.
@@ -246,7 +247,7 @@ Let's implement distrobuted sorting!
   - In the Sample Phase, Worker machines sort data locally, access indices in strides, and send the sample list to the Master.
   - Further discussions planned to refine the final design.
 
-</details>
+
 
 ### Week 6
 - Held a team meeting via Zoom on Sunday.
@@ -292,10 +293,55 @@ Let's implement distrobuted sorting!
    - Implement handling for disk overflow and memory overflow scenarios.
 
 
+</details>
+
+### Week 7
+
+- [The implemented code can be viewed here.](https://github.com/kimdoyoung0319/332project/tree/doyoung)
+- [Held a team meeting via Microsoft Teams on Saturday.](https://docs.google.com/document/d/1J1NHS6zjDWwW70XZ3Qp0CNE-8jWbbqu0WN_dxpdDSLY/edit?usp=sharing)
+
+#### Overall Design Summary
+1. **Init Phase:**
+   - The master is initially executed, and its IP and port are assigned. 
+   - Workers are executed, send their IP and port to the master, and receive their IDs. 
+2. **Sampling Phase:**
+   - Each worker collects the first record from their input blocks (assumed to be 32 MiB each) as samples and sends them to the master. 
+   - The master determines the range based on the received sample data and informs the workers. The workers' IDs are mapped to ranges.
+3. **Shuffling Phase:**
+   - Each input block is sorted before shuffling.
+   - The blocks are divided based on the assigned ranges.
+   - Based on the mapping of IDs to ranges, the divided data is sent to the corresponding worker IDs.
+   - Once all transfers are complete, the workers notify the master.
+4. **Merging Phase (refer to meeting notes):**
+   - Assign an index to each block.
+   - Read one line from each block and insert it into a priority queue, ordering based on the key.
+   - While queue is not empty:
+     - Dequeue to output the record with the smallest key.
+     - Write the dequeued record to the output file.
+     - Read another line from the block that contained the dequeued record and insert it into the priority queue.
+   - The merging is complete, notify the master.
+
+#### Tasks Completed This Week
+1. **Completed the overall system implementation according to the design.**
+   - Verified that the output file is correctly sorted using valsort.
+   - Performed testing using **64MB, 320MB** input data on each of the three worker machines.
+2. Implemented debugging logs that are printed by adding **--debug** to the program execution command.
+3. **Automated all processes** using a **shell script**, allowing the master to perform all phases.
+   - Generate input data on each worker machine using gensort.
+   - After the master executes, each worker is automatically executed.
+
+#### Next Week's Plan
+- Make the Merge Phase Concurrent for improved performance
+  - Current implementation uses a single thread to handle the entire merge process.
+- Enforce mimimum sample size.
+  - Currently, the sample size varies according to the number of blocks.
+- Change code portion where it loads all the block contents into the memory.
+- Clean targetDir/temp and targetDir/sorted directory after the sorting phase.
+- Test system stability with 10 worker machine and large data.
+- **Prepare final presentation.**
 <details>
 <summary> Progresses for next weeks </summary>
 
-### Week 7
 ### Week 8
 
 </details>
