@@ -1,9 +1,12 @@
 package worker
 
+import proto.master.MasterServiceGrpc
+
 object Main {
   import os.Path
   import common.Block
   import utils.globalContext
+  import scala.concurrent.Future
 
   private val logger = com.typesafe.scalalogging.Logger("worker")
 
@@ -12,22 +15,7 @@ object Main {
 
     val ((masterIp, masterPort), inputDirs, outputDir) = parseArgs(args)
     val blocks = identifyBlocks(inputDirs)
-
-    val client = new WorkerClient(masterIp, masterPort, outputDir)
-    val server = new WorkerServer(blocks, client, outputDir)
-
-    client.register(server.port).onComplete {
-      case Success(id) =>
-        logger.info(
-          s"Succeeded to establish connection to ${masterIp}:${masterPort} as ID of ${id}."
-        )
-        server.await()
-      case Failure(_) =>
-        logger.error(
-          s"Failed to establish connection to ${masterIp}:${masterPort}. Shutting down..."
-        )
-        server.stop()
-    }
+    val server = new WorkerServer(masterIp, masterPort, blocks, outputDir)
 
     server.await()
   }

@@ -94,6 +94,18 @@ package object utils {
     }
   }
 
+  /* Auxiliary methods for Promises. */
+  implicit class PromiseExtended[T](promise: scala.concurrent.Promise[T]) {
+    def apply(): T = {
+      import scala.util.{Success, Failure}
+
+      promise.future.value match {
+        case None | Some(Failure(_)) => throw new IllegalStateException
+        case Some(Success(value)) => value
+      }
+    }
+  }
+
   /* Converts string into os.Path regardless of whether it is absolute or
      relative. */
   def stringToPath(str: String): os.Path = {

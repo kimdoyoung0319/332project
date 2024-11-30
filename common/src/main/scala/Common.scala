@@ -132,12 +132,8 @@ package object common {
   /* Class to manage worker information. */
   case class Worker(val id: Int, val ip: String, val port: Int) {
     import proto.worker._
-    import proto.worker.ShuffleRequest.WorkerMessage
     import com.google.protobuf.ByteString
 
     val stub = utils.makeStub(ip, port)(WorkerServiceGrpc.stub)
-
-    def toMapping(start: ByteString, end: ByteString): (Int, WorkerMessage) =
-      (id, WorkerMessage(ip = ip, port = port, start = start, end = end))
   }
 }

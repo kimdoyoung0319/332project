@@ -6,30 +6,26 @@ import "common.proto";
 
 service WorkerService {
   rpc Sample(Empty) returns (SampleResponse) {}
-  rpc Shuffle(ShuffleRequest) returns (Empty) {}
-  rpc Demand(DemandRequest) returns (stream RecordMessage) {}
+  rpc Shuffle(Empty) returns (Empty) {}
   rpc Send(SendRequest) returns (Empty) {}
   rpc Sort(Empty) returns (Empty) {}
   rpc Merge(Empty) returns (Empty) {}
+  rpc Inform(InformRequest) returns (Empty) {}
 }
 
 message SampleResponse {
   repeated RecordMessage sample = 1;
 }
 
-message ShuffleRequest {
+message InformRequest {
   message WorkerMessage {
-    string ip = 1;
-    int32 port = 2;
-    bytes start = 3;
-    bytes end = 4;
+    string ip = 2;
+    uint32 port = 3;
+    bytes start = 4;
+    bytes end = 5;
   }
    
   map<int32, WorkerMessage> id_to_worker = 1;
-}
-
-message DemandRequest {
-  int32 id = 1;
 }
 
 message SendRequest {
