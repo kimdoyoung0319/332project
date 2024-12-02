@@ -1,139 +1,129 @@
-package object common {
+package common
 
-  /* A record whose size is hundred of bytes. */
-  class Record(val key: Vector[Byte], val value: Vector[Byte]) {
-    import proto.common.RecordMessage
+import org.scalactic.Bool
 
-    def toVector(): Vector[Byte] = key ++ value
+class Worker(val id: Int, val ip: String, val port: Int) {
+  val stub = utils.grpc.makeWorkerStub(ip, port)
+}
 
-    def toArray(): Array[Byte] = (key ++ value).toArray
+object Worker {
+  def apply(id: Int, ip: String, port: Int) = new Worker(id, ip, port)
+}
 
-    def toMessage(): RecordMessage = {
-      import com.google.protobuf.ByteString
+case class Record(key: Array[Byte], value: Array[Byte])
+    extends Ordered[Record] {
+  assert(key.size + value.size == Record.length)
 
-      RecordMessage(content = ByteString.copyFrom(toArray()))
-    }
-
-    override def toString(): String = {
-      import utils.ByteVectorExtended
-      key.toHexString() ++ " " ++ value.toHexString()
-    }
-  }
-
-  /* The companion object for Record. */
-  object Record {
-    import proto.common.RecordMessage
-
-    val length = 100
-
-    /* Make a Record object from an array of bytes. */
-    def apply(arr: Array[Byte]): Record = {
-      assert(arr.size == length)
-
-      val (key, value) = arr.splitAt(10)
-      new Record(key.toVector, value.toVector)
-    }
-
-    /* Make a Record object from a protobuf message. */
-    def fromMessage(message: RecordMessage): Record =
-      this(message.content.toByteArray)
-
-    implicit object Ordering extends Ordering[Record] {
-      def compare(x: Record, y: Record): Int = {
-        import utils.ByteVectorExtended
-        x.key.compare(y.key)
-      }
-    }
-  }
-
-  /* A file contains sequence of records, and fit in the memory. */
-  class Block(val path: os.Path) {
-    import geny.Generator
-    import scala.concurrent.Promise
-
-    assert(os.isFile(path))
-
-    val removed = Promise[Unit]()
-    var pos = 0
-
-    if (!os.exists(path))
-      removed.success(())
-
-    val contentsSource: Generator[Record] = {
-      import os.read.chunks
-      chunks(path, Record.length).drop(pos).map { case (arr, _) => Record(arr) }
-    }
-
-    def contents: Generator[Record] = {
-      assert(!removed.isCompleted)
-      contentsSource
-    }
-
-    override def toString(): String = s"Block(${path.toString()})"
-
-    def load(): Seq[Record] = contents.toSeq
-
-    def sorted(path: os.Path): Block = Block.fromSeq(load().sorted, path)
-
-    def read(): Generator[String] = contents.map(_.toString)
-
-    def sample(): Record = contents.head
-
-    def advance(): Record = {
-      val result = contents.head
-      pos += 1
-      result
-    }
-
-    def exhausted(): Boolean = pos >= contents.count()
-
-    /* Warning! Invoking this method on wrong block may have devastating
-       impact. */
-    def remove(): Unit = {
-      removed.success(())
-      os.remove(path)
-    }
-  }
-
-  /* Companion object for Block. */
-  object Block {
-    import os.{Path, temp, write, exists}
-    import scala.collection.mutable.Buffer
-
-    val size = 32 * 1024 * 1024
-
-    /* Writes the sequence of records into the file refered by path and returns
-       new Block object that refers to it. */
-    def fromSeq(seq: Seq[Record], path: Path): Block =
-      fromArr(seq.toArray, path)
-
-    /* Writes the array of records into the file refered by path and returns new
-       Block object that refers to it. */
-    def fromArr(arr: Array[Record], path: Path): Block = {
-      import utils.RecordsArrayExtended
-
-      write(path, arr.serialized, createFolders = true)
-      new Block(path)
-    }
-
-    /* Writes the buffer of records into the file refered by path and returns
-       new Block object that refers to it. */
-    def fromBuf(buf: Buffer[Record], path: Path): Block =
-      fromArr(buf.toArray, path)
-
-    /* Make a new Block object from a path to a file that already exists. The
-     path must exist in the disk. */
-    def apply(path: Path): Block = {
-      assert(exists(path), s"${path.toString} does not exist.")
-      new Block(path)
-    }
-  }
-
-  /* Class to manage worker information. */
-  case class Worker(val id: Int, val ip: String, val port: Int) {
-    import proto.worker._
+  def serialized = key ++ value
+  def toMessage = {
     import com.google.protobuf.ByteString
+    import proto.common.RecordMessage
 
-    val stub = utils.makeStub(ip, port)(WorkerServiceGrpc.stub)
+    RecordMessage(ByteString.copyFrom(serialized))
   }
+  def compare(that: Record): Int = Record.Ordering.compare(this, that)
+}
+
+object Record {
+  val length = 100
+
+  object Key { val length = 10 }
+
+  def apply(source: Array[Byte]): Record = {
+    assert(source.size == length)
+
+    new Record(source.slice(0, Key.length), source.slice(Key.length, length))
+  }
+
+  implicit object Ordering extends scala.Ordering[Record] {
+    def compare(x: Record, y: Record): Int =
+      utils.general.ByteArrayOrdering.compare(x.key, y.key)
+  }
+}
+
+object Key {
+  val length = 10
+}
+
+class LoadedRecords(val contents: collection.mutable.ArrayBuffer[Record]) {
+  /* This methods creates new directory when there's no such directory as
+     specified in path. Also, notice that it discards existing contents in
+     path. */
+  def writeInto(path: os.Path): DiskRecords = {
+    val serialized = Array.from(contents.flatMap(_.serialized))
+    os.write.over(
+      target = path,
+      data = serialized,
+      createFolders = true
+    )
+    DiskRecords(path)
+  }
+
+  def writeIntoAndClear(path: os.Path): DiskRecords = {
+    val result = writeInto(path)
+    contents.clear()
+    result
+  }
+
+  def sort(): Unit = contents.sortInPlace()
+  def append(elem: Record): Unit = contents += elem
+  def +=(elem: Record): Unit = append(elem)
+  def sizeInByte: Long = contents.size * Record.length
+  def isEmpty: Boolean = contents.isEmpty
+  def nonEmpty: Boolean = !isEmpty
+}
+
+object LoadedRecords {
+  import scala.collection.mutable.ArrayBuffer
+
+  def apply(): LoadedRecords =
+    new LoadedRecords(ArrayBuffer())
+
+  def apply(source: Array[Record]): LoadedRecords =
+    new LoadedRecords(ArrayBuffer.from(source))
+
+  def fromBytes(source: Array[Byte]): LoadedRecords = {
+    assert(
+      source.size % Record.length == 0,
+      "The input source's length must be divisible evenly by the length of records"
+    )
+    val grouped = source.grouped(Record.length).map(Record(_)).toArray
+
+    this(grouped)
+  }
+}
+
+class DiskRecords(path: os.Path) {
+  def load(recordOffset: Int, recordCount: Int): LoadedRecords = {
+    assert(recordOffset > 0, "Starting index must be larger than 0.")
+    assert(recordCount > 0, "The number of records must be larger than 0.")
+
+    val offset = recordOffset * Record.length
+    val count = recordCount * Record.length
+    val contents = os.read.bytes(path, offset, count)
+
+    LoadedRecords.fromBytes(contents)
+  }
+
+  def loadAll(): LoadedRecords = LoadedRecords.fromBytes(os.read.bytes(path))
+
+  def loadAt(index: Int): Record = {
+    val offset = index * Record.length
+
+    assert(index >= 0, "Index to be loaded must be positive or zero.")
+    assert(offset < sizeInByte, "Index must be within the file size.")
+
+    val contents = os.read.bytes(path, offset, Record.length)
+
+    Record(contents)
+  }
+
+  def grabSample(count: Int): Array[Record] =
+    Array.from(load(0, count).contents)
+
+  def sizeInByte: Long = os.size(path)
+}
+
+object DiskRecords {
+  def apply(path: os.Path): DiskRecords = new DiskRecords(path)
 }

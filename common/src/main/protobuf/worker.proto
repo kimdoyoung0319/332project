@@ -5,30 +5,39 @@ package proto;
 import "common.proto";
 
 service WorkerService {
-  rpc Sample(Empty) returns (SampleResponse) {}
-  rpc Shuffle(Empty) returns (Empty) {}
-  rpc Send(SendRequest) returns (Empty) {}
-  rpc Sort(Empty) returns (Empty) {}
-  rpc Merge(Empty) returns (Empty) {}
-  rpc Inform(InformRequest) returns (Empty) {}
+  rpc informOthers(AllWorkers) returns (Empty);
+  rpc demandSample(SampleSize) returns (SampleRecords);
+  rpc sendPartitionAnchors(PartitionAnchors) returns (Empty);
+  rpc startSorting(Empty) returns (Empty);
+  rpc constructFileIndex(Empty) returns (Empty);
+  rpc startShuffling(Empty) returns (Empty);
+  rpc requestPartition(ThisId) returns (PartitionedRecords);
+  rpc startMerging(Empty) returns (Empty);
+  rpc finish(Empty) returns (Empty);
 }
 
-message SampleResponse {
+message AllWorkers {
+  uint32 count = 1;
+  repeated WorkerRegisterInfo workers = 2;
+}
+
+message SampleSize {
+  uint32 size = 1;
+}
+
+message SampleRecords {
   repeated RecordMessage sample = 1;
 }
 
-message InformRequest {
-  message WorkerMessage {
-    string ip = 2;
-    uint32 port = 3;
-    bytes start = 4;
-    bytes end = 5;
-  }
-   
-  map<int32, WorkerMessage> id_to_worker = 1;
+message PartitionAnchors {
+  repeated bytes anchors = 1;
 }
 
-message SendRequest {
-  int32 size = 1;
+message PartitionedRecords {
+  uint32 size = 1;
   repeated RecordMessage partition = 2;
+}
+
+message ThisId {
+  uint32 id = 1;
 }

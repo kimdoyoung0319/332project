@@ -5,14 +5,9 @@ package proto;
 import "common.proto";
 
 service MasterService {
-  rpc Register(RegisterRequest) returns (RegisterReply);
+  rpc registerWorker(WorkerRegisterInfo) returns (AllocatedId);
 }
 
-message RegisterRequest {
-  string ip = 1;
-  uint32 port = 2;
-}
-
-message RegisterReply {
-  int32 id = 1;
+message AllocatedId {
+  uint32 id = 1;
 }

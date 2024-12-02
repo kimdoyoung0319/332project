@@ -1,54 +1,45 @@
 package worker
 
-import proto.master.MasterServiceGrpc
-
 object Main {
-  import os.Path
-  import common.Block
-  import utils.globalContext
-  import scala.concurrent.Future
-
-  private val logger = com.typesafe.scalalogging.Logger("worker")
-
   def main(args: Array[String]): Unit = {
-    import scala.util.{Success, Failure}
-
     val ((masterIp, masterPort), inputDirs, outputDir) = parseArgs(args)
-    val blocks = identifyBlocks(inputDirs)
-    val server = new WorkerServer(masterIp, masterPort, blocks, outputDir)
+    val inputs = identifyInputs(inputDirs)
+    val server = new Server(masterIp, masterPort, inputs, outputDir)
 
+    server.start()
     server.await()
+  }
+
+  private def identifyInputs(dirs: Seq[os.Path]): Seq[common.DiskRecords] = {
+    for (dir <- dirs; file <- os.list(dir) if os.isFile(file))
+      yield common.DiskRecords(file)
   }
 
   private def parseArgs(
       args: Array[String]
-  ): ((String, Int), Seq[Path], Path) = {
+  ): ((String, Int), Seq[os.Path], os.Path) = {
 
-    import utils.stringToPath
-
-    val ipPortPattern = """^(\d{1,3}\.){3}\d{1,3}:\d{1,5}$""".r
     require(
-      ipPortPattern.matches(args(0)),
+      utils.network.addressPattern.matches(args(0)),
       "The pattern for master server address does not match."
     )
+
     val (masterIp, masterPort) = {
       val parts = args(0).split(":")
       (parts(0), parts(1).toInt)
     }
 
-    /* I know what you gonna complain about, but the imperative style is way
-         more concise for this kind of problems. */
     var isInputDir: Boolean = false
-    var inputDirs: Seq[Path] = Nil
-    var outputDir: Path = null
+    var inputDirs: Seq[os.Path] = Nil
+    var outputDir: os.Path = null
 
     for (arg <- args.drop(1)) {
       arg match {
         case "-I" => isInputDir = true
         case "-O" => isInputDir = false
         case _ if isInputDir =>
-          inputDirs = inputDirs.appended(stringToPath(arg))
-        case _ if !isInputDir => outputDir = stringToPath(arg)
+          inputDirs = inputDirs.appended(os.Path(arg))
+        case _ if !isInputDir => outputDir = os.Path(arg, os.pwd)
       }
     }
 
@@ -56,8 +47,4 @@ object Main {
 
     ((masterIp, masterPort), inputDirs, outputDir)
   }
-
-  private def identifyBlocks(inputDirs: Seq[Path]): Seq[Block] =
-    for (inputDir <- inputDirs; file <- os.list(inputDir) if os.isFile(file))
-      yield Block(file)
 }

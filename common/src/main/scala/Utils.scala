@@ -1,278 +1,185 @@
-package object utils {
-  /* IP address of this machine. Convenient for retreiving address in
-     shorthand. */
-  val thisIp: String = java.net.InetAddress.getLocalHost.getHostAddress
+package utils
 
-  /* ByteString for minimum value of a key. Looks braindead, but could not come
-     up with better solution. */
-  val minKeyString: com.google.protobuf.ByteString = {
-    val zero = 0.toByte
-    com.google.protobuf.ByteString.copyFrom(
-      Array(zero, zero, zero, zero, zero, zero, zero, zero, zero, zero)
-    )
+package object general {
+  implicit object ByteArrayOrdering extends math.Ordering[Array[Byte]] {
+    def compare(x: Array[Byte], y: Array[Byte]): Int = {
+      assert(x.size == y.size, "Two byte arrays must have equal size.")
+
+      for (i <- 0 until x.size) {
+        if (x(i) != y(i))
+          return (x(i).toShort & 0xFF) - (y(i).toShort & 0xFF)
+      }
+
+      return 0
+    }
+  }
+}
+
+package object network {
+  val ipPattern = """^(\d{1,3}\.){3}\d{1,3}$""".r
+  val addressPattern = """^(\d{1,3}\.){3}\d{1,3}:\d{1,5}$""".r
+  def thisIp = java.net.InetAddress.getLocalHost.getHostAddress
+}
+
+package proto {
+  trait ProtoMessage {
+    def unpacked: Any
   }
 
-  /* ByteString for maximum value of a key. */
-  val maxKeyString: com.google.protobuf.ByteString = {
-    val ff = (-1).toByte
-    com.google.protobuf.ByteString.copyFrom(
-      Array(ff, ff, ff, ff, ff, ff, ff, ff, ff, ff)
-    )
+  package object worker {
+    import _root_.proto.worker._
+    import _root_.common.{LoadedRecords, Record}
+    import utils.proto.common.RecordMessageOps
+
+    implicit class AllWorkersOps(message: AllWorkers) extends ProtoMessage {
+      import _root_.common.Worker
+
+      def unpacked: (Int, Seq[Worker]) = {
+        val workers = for (id <- 0 until message.count) yield {
+          val worker = message.workers(id)
+          Worker(id, worker.ip, worker.port)
+        }
+
+        (message.count, workers)
+      }
+    }
+
+    implicit class SampleRecordsOps(message: SampleRecords)
+        extends ProtoMessage {
+      def unpacked: Seq[Array[Byte]] = message.sample.toSeq.map(_.unpacked)
+    }
+
+    implicit class PartitionedRecordsOps(message: PartitionedRecords)
+        extends ProtoMessage {
+      def unpacked: (Int, LoadedRecords) = {
+        val (size, partition) = (message.size, message.partition)
+        val records = partition.map { recordMessage =>
+          Record(recordMessage.unpacked)
+        }.toArray
+        val loaded = LoadedRecords(records)
+
+        (size, loaded)
+      }
+    }
   }
 
-  /* Global execution context to be used conveniently. */
-  implicit val globalContext: scala.concurrent.ExecutionContext =
+  package object common {
+    import _root_.proto.common._
+
+    implicit class RecordMessageOps(message: RecordMessage)
+        extends ProtoMessage {
+      def unpacked: Array[Byte] = {
+        assert(message.record.toByteArray.size == 100)
+        message.record.toByteArray()
+      }
+
+      def toRecord: _root_.common.Record = _root_.common.Record(unpacked)
+    }
+  }
+}
+
+package object grpc {
+  import io.grpc._
+  import _root_.proto._
+
+  def makeServer(service: ServerServiceDefinition) =
+    ServerBuilder.forPort(0).addService(service).build
+
+  def makeMasterStub(ip: String, port: Int) =
+    master.MasterServiceGrpc.stub(makeChannel(ip, port))
+
+  def makeWorkerStub(ip: String, port: Int) =
+    worker.WorkerServiceGrpc.stub(makeChannel(ip, port))
+
+  private def makeChannel(ip: String, port: Int) =
+    ManagedChannelBuilder.forAddress(ip, port).usePlaintext().build
+}
+
+package object concurrent {
+  implicit val global: scala.concurrent.ExecutionContext =
     scala.concurrent.ExecutionContext.global
 
-  /* Range for records. */
-  implicit class RecordRange(range: (Vector[Byte], Vector[Byte])) {
-    import common.Record
+  implicit class PromiseCompanionOps(companion: scala.concurrent.Promise.type) {
+    import scala.concurrent.Promise
 
-    private val from = range._1
-    private val to = range._2
-
-    assert(from.size == 10, to.size == 10)
-
-    def contains(record: Record): Boolean =
-      (record.key.compare(from) >= 0) && (to.compare(record.key) > 0)
-  }
-
-  /* Auxiliary methods for arrays of bytes. */
-  implicit class RecordsArrayExtended(recordsArray: Array[common.Record]) {
-    def serialized: Array[Byte] =
-      for (record <- recordsArray; byte <- record.toVector()) yield byte
-  }
-
-  /* Auxiliary methods for Byte. */
-  implicit class ByteExtended(byte: Byte) {
-    def toHexString(): String = String.format("%02X", byte & 0xFF)
-  }
-
-  /* Auxiliary methods for vectors of bytes. */
-  implicit class ByteVectorExtended(bytes: Vector[Byte])
-      extends Ordered[Vector[Byte]] {
-    def toHexString(): String = bytes.map(_.toHexString()).mkString
-
-    def toByteString(): com.google.protobuf.ByteString =
-      com.google.protobuf.ByteString.copyFrom(bytes.toArray)
-
-    /* Compare two vectors of bytes, and returns some positive value if x is
-       greater than y in lexicographical order. */
-    def compare(that: Vector[Byte]): Int = {
-      require(bytes.size == that.size)
-
-      (bytes, that) match {
-        case (xh +: xt, yh +: yt) if xh == yh => xt.compare(yt)
-        case (xh +: _, yh +: _) => (xh.toShort & 0xFF) - (yh.toShort & 0xFF)
-        case (_, _) => 0
-      }
+    def withCallback[T](callback: T => Unit): Promise[T] = {
+      val promise = Promise[T]()
+      promise.future.foreach(callback)
+      promise
     }
 
-    def until(that: Vector[Byte]): (Vector[Byte], Vector[Byte]) = {
-      assert(bytes.size == that.size)
-      (bytes, that)
+    def withCallback(callback: => Unit): Promise[Unit] = {
+      val promise = Promise[Unit]()
+      promise.future.foreach(_ => callback)
+      promise
     }
   }
 
-  /* Auxiliary methods for ByteString. */
-  implicit class ByteStringExtended(bytes: com.google.protobuf.ByteString) {
-    def toHexString: String = toByteVector.toHexString()
+  implicit class FutureCompanionOps(companion: scala.concurrent.Future.type) {
+    import scala.concurrent.Future
 
-    def toByteVector: Vector[Byte] = bytes.toByteArray.toVector
+    def forall[T](futures: Seq[Future[T]]): Future[Unit] =
+      companion.sequence(futures).map { _ => () }
   }
 
-  /* Auxiliary methods for scala.collection.mutable.Buffer[common.Record]. */
-  implicit class RecordsBufferExtended(
-      recordsBuffer: collection.mutable.Buffer[common.Record]
-  ) {
-    def toByteArray(): Array[Byte] = recordsBuffer.toArray.serialized
-
-    def writeIntoDisk(path: os.Path): common.Block = {
-      os.write(path, recordsBuffer.toByteArray())
-      recordsBuffer.clear()
-      common.Block(path)
-    }
+  implicit class UnitPromiseOps(promise: scala.concurrent.Promise[Unit]) {
+    def fulfill(): Unit = promise.success(())
   }
 
-  /* Auxiliary methods for Promises. */
-  implicit class PromiseExtended[T](promise: scala.concurrent.Promise[T]) {
-    def apply(): T = {
-      import scala.util.{Success, Failure}
+  implicit class UnitFutureOps(future: scala.concurrent.Future[Unit]) {
+    import scala.concurrent.Future
 
-      promise.future.value match {
-        case None | Some(Failure(_)) => throw new IllegalStateException
-        case Some(Success(value)) => value
-      }
-    }
+    def after[T](callback: => T): Future[T] = future.map { _ => callback }
   }
 
-  /* Converts string into os.Path regardless of whether it is absolute or
-     relative. */
-  def stringToPath(str: String): os.Path = {
-    import os.{FilePath, RelPath, SubPath, Path, pwd}
-
-    FilePath(str) match {
-      case p: Path => p
-      case p: RelPath => pwd / p
-      case p: SubPath => pwd / p
-    }
+  implicit class PromiseOps[T](promise: scala.concurrent.Promise[T]) {
+    def value: T = promise.future.value.get.get
   }
 
-  /* Small wrapper over gRPC's ManagedChannelBuilder. */
-  def makeStub[T](ip: String, port: Int)(
-      createStubWith: io.grpc.ManagedChannel => T
-  ): T = {
-    val channel =
-      io.grpc.ManagedChannelBuilder.forAddress(ip, port).usePlaintext().build
-    createStubWith(channel)
+  class SafeBuffer[T](source: List[T])
+      extends scala.collection.mutable.AbstractSeq[T] {
+    import scala.collection.mutable.ListBuffer
+
+    val buffer = ListBuffer.from(source)
+
+    def apply(i: Int): T = synchronized(buffer(i))
+    def +=(elem: T): Unit = synchronized(buffer += elem)
+    override def toSeq: Seq[T] = synchronized(buffer.toSeq)
+    def update(i: Int, elem: T): Unit = synchronized(buffer.update(i, elem))
+    def length: Int = synchronized(buffer.size)
+    def iterator: Iterator[T] = toSeq.iterator
   }
 
-  /* Small wrapper over gRPC's ServerBuilder. */
-  def makeServer[T](serviceImpl: T)(
-      createServiceWith: (
-          T,
-          scala.concurrent.ExecutionContext
-      ) => io.grpc.ServerServiceDefinition
-  ) = {
-    val service = createServiceWith(serviceImpl, globalContext)
-    io.grpc.ServerBuilder.forPort(0).addService(service).build.start
+  object SafeBuffer {
+    def apply[T]() = new SafeBuffer[T](Nil)
   }
 
-  /* Leaves a log about the contents of the sequence of records with the
-     logger, with the description about the records desc. */
-  def logRecords(
-      logger: com.typesafe.scalalogging.Logger,
-      records: Seq[common.Record],
-      desc: String
-  ): Unit = {
+  class SafeCounter(value: Int) {
+    var counter = value
 
-    logger.info(s"Contents of ${desc} are....")
-    for (record <- records)
-      logger.info(record.toString)
-    logger.info("------------------------------")
-  }
-
-  /* Cleans up given directory, making one if it does not exists, deleting if
-     a file with same name exists. */
-  def cleanDirectory(dir: os.Path): Unit = {
-    if (os.exists(dir) && os.isDir(dir)) {
-      for (entry <- os.list(dir)) os.remove.all(entry)
-    } else if (os.exists(dir) && os.isFile(dir)) {
-      os.remove(dir)
-      os.makeDir(dir)
-    } else {
-      os.makeDir(dir)
-    }
-  }
-
-  /* Thread-safe allocator for filenames under path with base filename. */
-  class ThreadSafeNameAllocator(path: os.Path, base: String) {
-    var counter = 0
-
-    def allocate(): os.Path = this.synchronized {
-      val result = path / s"${base}.${counter}"
+    def increment(): Int = synchronized {
+      val result = counter
       counter += 1
       result
     }
   }
 
-  /* Thread-safe mutable list. */
-  class ThreadSafeMutableList[T](seq: Seq[T]) {
-    import scala.collection.mutable.ListBuffer
-
-    private val mutableList = ListBuffer.from(seq)
-
-    def append(elem: T): Unit = mutableList.synchronized {
-      mutableList += (elem)
-    }
-
-    def +=(elem: T): Unit = append(elem)
-
-    def toSeq: Seq[T] = mutableList.synchronized(mutableList.toSeq)
+  object SafeCounter {
+    def apply(value: Int) = new SafeCounter(value)
   }
 
-  object ThreadSafeMutableList {
-    def apply[T]() = new ThreadSafeMutableList[T](Seq.empty)
+  class SafeQueue[T](source: Seq[T]) {
+    val queue = scala.collection.mutable.Queue.from(source)
+
+    def enqueue(elem: T): Unit = synchronized(queue.enqueue(elem))
+    def dequeue(): T = synchronized(queue.dequeue())
+    def size: Int = synchronized(queue.size)
   }
 
-  /* Prints the key of each records, wating action between each records.
-     Convenient for reading the file contents generated by gensort. */
-  def printKeys(path: os.Path, action: => Unit): Unit = {
-    val blockToPrint = common.Block(path)
-
-    for (record <- blockToPrint.contents) {
-      println(record.key.toHexString())
-      action
-    }
+  object SafeQueue {
+    def apply[T](
+        source: Seq[T]
+    ): SafeQueue[T] =
+      new SafeQueue(source)
   }
-
-  /* Prints the key of each records, wating newline (pressing Return) between
-     each records. Convenient for reading the file contents generated by
-     gensort. */
-  def printKeysWithEnter(path: os.Path): Unit =
-    printKeys(path, scala.io.StdIn.readLine())
-}
-
-package utils.test {
-  /* Wrapper over gensort to be conveniently used in tests. */
-  object Gensort {
-    final class GensortFailedException extends Exception {}
-
-    var count = 0
-    val gensort = os.pwd / "bin" / "gensort"
-    val temp = os.temp.dir()
-
-    require(
-      os.exists(gensort),
-      """
-        Tests involving gensort requires gensort executable to be in bin/
-        directory. Compile and put it if you do not have one.
-      """
-    )
-
-    def makeBinaryAt(n: Int, file: os.Path): os.Path = {
-      val cmd = (gensort, n, file)
-
-      os.call(cmd = cmd, check = false).exitCode match {
-        case 0 => file
-        case _ => throw new GensortFailedException
-      }
-    }
-
-    def makeAsciiAt(n: Int, file: os.Path): os.Path = {
-      val cmd = (gensort, "-a", n, file)
-
-      os.call(cmd = cmd, check = false).exitCode match {
-        case 0 => file
-        case _ => throw new GensortFailedException
-      }
-    }
-
-    def makeBinary(n: Int): os.Path = makeBinaryAt(n, temp / s"temp.$count")
-    def makeAscii(n: Int): os.Path = makeAsciiAt(n, temp / s"temp.$count")
-  }
-
-  /* Wrapper over valsort to be conveniently used in tests. */
-  object Valsort {
-    val valsort = os.pwd / "bin" / "valsort"
-
-    require(
-      os.exists(valsort),
-      """
-        Tests involving valsort requires valsort executable to be in bin/
-        directory. Compile and put it if you do not have one.
-      """
-    )
-
-    def validate(file: os.Path): Boolean = {
-      require(os.exists(file))
-
-      val cmd = (valsort, file)
-      os.call(cmd = cmd, check = false).exitCode match {
-        case 0 => true
-        case _ => false
-      }
-    }
-  }
-
 }
