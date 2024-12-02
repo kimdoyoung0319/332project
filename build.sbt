@@ -10,7 +10,8 @@ ThisBuild / libraryDependencies := Seq(
   "org.scalatest" %% "scalatest" % "3.2.19" % "test",
   "com.lihaoyi" %% "os-lib" % "0.11.3",
   "ch.qos.logback" % "logback-classic" % "1.2.10",
-  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4"
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
+  "org.slf4j" % "jul-to-slf4j" % "1.7.36"
 )
 
 ThisBuild / scalacOptions += "-deprecation"
@@ -30,7 +31,7 @@ lazy val common = (project in file("common"))
     )
   )
 
-/* TODO: Add dependencies for sbt-Assembly. */
+/* TODO: Add dependencies for sbt-assembly. */
 lazy val master = (project in file("master"))
   .dependsOn(common)
   .settings(
