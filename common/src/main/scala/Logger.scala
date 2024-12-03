@@ -47,7 +47,7 @@ object LoggerFactoryUtil {
     val encoder = new ch.qos.logback.classic.encoder.PatternLayoutEncoder()
     encoder.setContext(context) // Encoder에 Context 설정
     encoder.setPattern(
-      "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+      "%d{mm:ss} %-5level %logger{36} - %msg%n"
     )
     encoder.start() // Context 설정 후 start 호출
     fileAppender.setEncoder(encoder) // Encoder 연결
@@ -67,7 +67,7 @@ object LoggerFactoryUtil {
     val encoder = new ch.qos.logback.classic.encoder.PatternLayoutEncoder()
     encoder.setContext(context) // Encoder에 Context 설정
     encoder.setPattern(
-      "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+      "%d{mm:ss} %-5level %logger{36} - %msg%n"
     )
     encoder.start() // Context 설정 후 start 호출
     grpcFileAppender.setEncoder(encoder) // Encoder 연결
@@ -88,7 +88,7 @@ object LoggerFactoryUtil {
     val encoder = new ch.qos.logback.classic.encoder.PatternLayoutEncoder()
     encoder.setContext(context) // Encoder에 Context 설정
     encoder.setPattern(
-      "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+      "%d{mm:ss} %-5level %logger{36} - %msg%n"
     )
     encoder.start() // Context 설정 후 start 호출
     consoleAppender.setEncoder(encoder) // Encoder 연결

@@ -8,7 +8,9 @@ class Service(
     outputDir: os.Path,
     masterIp: String,
     masterPort: Int,
-    finished: scala.concurrent.Promise[Unit]
+    finished: scala.concurrent.Promise[
+      Unit
+    ] /* TODO: Fix the issue that this promise completed serveral times. */
 ) extends WorkerServiceGrpc.WorkerService {
   import scala.concurrent.{Future, Promise}
   import scala.collection.mutable.Queue
@@ -43,12 +45,12 @@ class Service(
   private val hasConstructedIndices =
     Promise[Map[Int, Queue[DiskRecordsIndex]]]()
 
-  private def thisId = receivedThisId.value
-  private def count = receivedCount.value
-  private def workers = receivedOtherWorkers.value
-  private def partitions = receivedPartitions.value
-  private def sortedDiskRecords = hasSortedDiskRecords.value
-  private def workerToIndices = hasConstructedIndices.value
+  private lazy val thisId = receivedThisId.value
+  private lazy val count = receivedCount.value
+  private lazy val workers = receivedOtherWorkers.value
+  private lazy val partitions = receivedPartitions.value
+  private lazy val sortedDiskRecords = hasSortedDiskRecords.value
+  private lazy val workerToIndices = hasConstructedIndices.value
 
   def informOthers(request: AllWorkers): Future[Empty] = Future {
     assert(
@@ -56,11 +58,15 @@ class Service(
       "The number of the workers should be same with the received sequence length."
     )
 
-    logger.info(s"[${thisId}]: Received informations about other workers.")
-
     val workers = request.workers.map { message =>
       Worker(message.id, message.ip, message.port)
     }
+
+    logger.info(
+      s"[${thisId}] Received informations about other workers. The received list of workers is..."
+    )
+    for (worker <- workers)
+      logger.info(s"[${thisId}] ${worker.id}: ${worker.ip}:${worker.port}")
 
     receivedCount.success(request.count)
     receivedOtherWorkers.success(workers)
@@ -68,19 +74,34 @@ class Service(
     Empty()
   }
 
-  def demandSample(request: SampleSize): Future[SampleRecords] = Future {
-    val sampleSizePerInput = request.size / inputs.size + 1
+  def demandSample(request: Empty): Future[SampleRecords] = {
+    logger.info(
+      s"[${thisId}] Received sample request from the master machine."
+    )
+
+    /* TODO: Modify this to conform with larger test cases. */
+    val recordsPerInput = 100
     val sample =
-      for (input <- inputs; record <- input.grabSample(sampleSizePerInput))
+      for (input <- inputs; record <- input.grabSample(recordsPerInput))
         yield record.toMessage
 
-    SampleRecords(sample)
+    Future(SampleRecords(sample))
   }
 
-  def sendPartitionAnchors(request: PartitionAnchors): Future[Empty] = Future {
+  def sendPartitionAnchors(request: PartitionAnchors): Future[Empty] = {
+    import utils.general.ByteArrayOps
+
     val anchors = request.anchors.map(_.toByteArray)
+
+    logger.info(
+      s"[${thisId}] Received partition anchors from the master machine. The anchors are..."
+    )
+    for (anchor <- anchors)
+      logger.info(
+        s"[${thisId}] ${anchor.toHexString}"
+      )
     receivedPartitions.success(anchors)
-    Empty()
+    Future(Empty())
   }
 
   def startSorting(request: Empty): Future[Empty] = {
@@ -172,11 +193,23 @@ class Service(
   type DiskRecordsIndex = (DiskRecords, (Int, Int))
 
   private def makeIndex(): Map[Int, Queue[DiskRecordsIndex]] = {
-    val indices = for (input <- inputs) yield makeIndexForSingleFile(input)
+    val indices =
+      for (diskRecord <- sortedDiskRecords)
+        yield makeIndexForSingleFile(diskRecord)
     val transposed = indices.transpose
     val queue = transposed.map(Queue.from(_))
+    val result = queue.indices.zip(queue).toMap
 
-    queue.indices.zip(queue).toMap
+    logger.info(
+      s"[$thisId] Constructed indices for each files. The indices are..."
+    )
+    for (worker <- workers; (file, (start, end)) <- result(worker.id)) {
+      logger.info(
+        s"[${thisId}] [${worker.id}] ${file.path}: [${start}, ${end})"
+      )
+    }
+
+    result
   }
 
   private def makeIndexForSingleFile(
@@ -185,18 +218,18 @@ class Service(
     import utils.general.ByteArrayOrdering.compare
 
     val records = diskRecords.loadAll().contents
-    val lastIndex = records.length - 1
+    val length = records.length
     var index = 0
 
     for (id <- 0 until count) yield {
       val start = index
-      val lastKey = partitions(id)
+      val anchor = partitions(id)
 
-      while (index < lastIndex && compare(records(index).key, lastKey) < 0)
+      while (index < length && compare(records(index).key, anchor) < 0)
         index += 1
 
-      val last = index
-      (diskRecords, (start, last))
+      val end = index
+      (diskRecords, (start, end))
     }
   }
 
@@ -230,9 +263,9 @@ class Service(
       collectedPartitions += file
     }
 
-    /* This can be problematic... */
+    /* TODO: Fix the problem that each worker receives partition repeatedly. */
     while (!collectedAllPartitions.isCompleted) {
-      val collected = manager.ensured(maxPartitionSize) {
+      def collected = manager.ensured(maxPartitionSize) {
         worker.stub.requestPartition(ThisId(thisId)).onComplete {
           case Success(reply) => appendIntoCollected(reply)
           case Failure(_) => collectedAllPartitions.fulfill()

@@ -1,5 +1,7 @@
 package utils
 
+import java.util.Collection
+
 package object general {
   implicit object ByteArrayOrdering extends math.Ordering[Array[Byte]] {
     def compare(x: Array[Byte], y: Array[Byte]): Int = {
@@ -12,6 +14,19 @@ package object general {
 
       return 0
     }
+  }
+
+  implicit class ByteOps(byte: Byte) {
+    def toHexString: String = String.format("%02X", byte & 0xFF)
+  }
+
+  implicit class ByteStringOps(bytes: com.google.protobuf.ByteString) {
+    def toHexString: String =
+      bytes.toByteArray.map(_.toHexString).mkString
+  }
+
+  implicit class ByteArrayOps(bytes: Array[Byte]) {
+    def toHexString: String = bytes.map(_.toHexString).mkString
   }
 }
 
@@ -123,7 +138,7 @@ package object concurrent {
   }
 
   implicit class UnitPromiseOps(promise: scala.concurrent.Promise[Unit]) {
-    def fulfill(): Unit = promise.success(())
+    def fulfill(): Unit = promise.trySuccess(())
   }
 
   implicit class UnitFutureOps(future: scala.concurrent.Future[Unit]) {
@@ -134,6 +149,15 @@ package object concurrent {
 
   implicit class PromiseOps[T](promise: scala.concurrent.Promise[T]) {
     def value: T = promise.future.value.get.get
+  }
+
+  implicit class FutureOps[T](future: scala.concurrent.Future[T]) {
+    import scala.util.{Success, Failure}
+
+    def after[U](callback: T => U): Unit = future.onComplete {
+      case Success(value) => callback(value)
+      case Failure(exception) => throw exception
+    }
   }
 
   class SafeBuffer[T](source: List[T])
@@ -168,18 +192,16 @@ package object concurrent {
     def apply(value: Int) = new SafeCounter(value)
   }
 
-  class SafeQueue[T](source: Seq[T]) {
-    val queue = scala.collection.mutable.Queue.from(source)
+  import scala.jdk.CollectionConverters.SeqHasAsJava
+  import scala.jdk.javaapi.CollectionConverters
 
-    def enqueue(elem: T): Unit = synchronized(queue.enqueue(elem))
-    def dequeue(): T = synchronized(queue.dequeue())
-    def size: Int = synchronized(queue.size)
+  class SafeQueue[T](source: Seq[T])
+      extends java.util.concurrent.ConcurrentLinkedQueue[T](source.asJava) {
+    def enqueue(elem: T): Unit = super.add(elem)
+    def dequeue(): T = super.poll()
   }
 
   object SafeQueue {
-    def apply[T](
-        source: Seq[T]
-    ): SafeQueue[T] =
-      new SafeQueue(source)
+    def apply[T](source: Seq[T]) = new SafeQueue[T](source)
   }
 }

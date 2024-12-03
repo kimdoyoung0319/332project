@@ -58,16 +58,12 @@ class Service(count: Int, finished: scala.concurrent.Promise[Unit])
   }
 
   private def startSamplingPhase: Unit = {
-    import proto.worker.SampleSize
     import utils.proto.common.RecordMessageOps
 
     logger.info("Starting sampling phase...")
 
-    /* 10 * 1024 * Record.length == about 1 MB. */
-    val minimumSampleCountPerWorker = 10 * 1024
-    val request = SampleSize(minimumSampleCountPerWorker)
     val all = Future.sequence {
-      for (worker <- workers) yield worker.stub.demandSample(request)
+      for (worker <- workers) yield worker.stub.demandSample(Empty())
     }
 
     all.foreach { message =>
@@ -96,6 +92,7 @@ class Service(count: Int, finished: scala.concurrent.Promise[Unit])
       sample: Seq[Record]
   ): proto.worker.PartitionAnchors = {
     import com.google.protobuf.ByteString
+    import utils.general.ByteStringOps
 
     val max = ByteString.copyFrom(Array.fill(Record.Key.length)((-1).toByte))
     val sorted = sample.sorted
@@ -121,7 +118,11 @@ class Service(count: Int, finished: scala.concurrent.Promise[Unit])
       .grouped(span)
       .map(group => ByteString.copyFrom(group.last.key))
       .toSeq
-      .updated(sorted.length - 1, max)
+      .dropRight(1)
+      .appended(max)
+
+    logger.info(s"The anchors for each workers are...")
+    for (anchor <- anchors) logger.info(anchor.toHexString)
 
     proto.worker.PartitionAnchors(anchors)
   }
@@ -176,7 +177,7 @@ class Service(count: Int, finished: scala.concurrent.Promise[Unit])
     val all = Future.sequence {
       for (worker <- workers) yield {
         println(s"${worker.ip}")
-        logger.info(s"Worker #${worker.id}: ${worker.ip}:${worker.port}")
+        logger.info(s"[${worker.id}] ${worker.ip}:${worker.port}")
         worker.stub.finish(request = proto.common.Empty())
       }
     }
