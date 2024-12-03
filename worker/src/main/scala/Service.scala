@@ -1,3 +1,4 @@
+/* TODO: Clean up output directory after all procedure. */
 package worker
 
 import proto.worker._
@@ -8,13 +9,11 @@ class Service(
     outputDir: os.Path,
     masterIp: String,
     masterPort: Int,
-    finished: scala.concurrent.Promise[
-      Unit
-    ] /* TODO: Fix the issue that this promise completed serveral times. */
+    finished: scala.concurrent.Promise[Unit]
 ) extends WorkerServiceGrpc.WorkerService {
   import scala.concurrent.{Future, Promise}
   import scala.collection.mutable.Queue
-  import utils.concurrent.{global, PromiseOps}
+  import utils.concurrent.{global, PromiseOps, FutureCompanionOps}
   import common.{DiskRecords, LoadedRecords, Worker}
 
   private val logger = utils.logger.LoggerFactoryUtil.getLogger("worker")
@@ -66,7 +65,7 @@ class Service(
       s"[${thisId}] Received informations about other workers. The received list of workers is..."
     )
     for (worker <- workers)
-      logger.info(s"[${thisId}] ${worker.id}: ${worker.ip}:${worker.port}")
+      logger.info(s"[${thisId}] [${worker.id}] ${worker.ip}:${worker.port}")
 
     receivedCount.success(request.count)
     receivedOtherWorkers.success(workers)
@@ -107,7 +106,6 @@ class Service(
   def startSorting(request: Empty): Future[Empty] = {
     val counter = utils.concurrent.SafeCounter(0)
     val manager = new utils.memory.MemoryManager
-    /* Is it okay to define it with val? */
     val sortSingle = sortSingleDiskRecords(counter, manager)(_)
     val allInputSorted = Future.sequence {
       for (input <- inputs) yield sortSingle(input)
@@ -142,27 +140,34 @@ class Service(
       "The worker machine must have constructed indices for each other worker machines."
     )
 
-    val (file, (start, end)) = workerToIndices(request.id).dequeue()
-    val loaded = file.load(start, end - start)
-    val partition = loaded.contents.map(_.toMessage).toSeq
+    if (workerToIndices(request.id).nonEmpty) {
+      val (file, (start, end)) = workerToIndices(request.id).dequeue()
+      val loaded = file.load(start, end - start)
+      val partition = loaded.contents.map(_.toMessage).toSeq
 
-    PartitionedRecords(end - start, partition)
+      logger.info(
+        s"[${thisId}] [${request.id}] Received partition request. Sending partition of size ${partition.size}"
+      )
+
+      PartitionedRecords(partition)
+    } else {
+      PartitionedRecords(Nil)
+    }
   }
 
   def startMerging(request: Empty): Future[Empty] = {
     import utils.concurrent.FutureCompanionOps
 
-    val maxConcurrency = 10
-
+    val concurrency = 10
     val counter = utils.concurrent.SafeCounter(0)
     val manager = new utils.memory.MemoryManager
     val queue =
       utils.concurrent.SafeQueue(collectedPartitions.map(Seq(_)).toSeq)
 
-    val mergeThread = merge(counter, queue, manager)
+    def mergeWorker = merge(counter, queue, manager)
     /* TODO: Refactor this. */
     val all = Future.forall {
-      for (_ <- 0 until maxConcurrency) yield mergeThread
+      for (_ <- 0 until concurrency) yield mergeWorker
     }
 
     all.map { _ => Empty() }
@@ -238,56 +243,58 @@ class Service(
   private def collectPartitionFrom(
       counter: utils.concurrent.SafeCounter,
       manager: utils.memory.MemoryManager
-  )(worker: Worker): Future[Unit] = {
-    import scala.concurrent.Await
-    import scala.concurrent.duration._
-    import utils.concurrent.{UnitPromiseOps, UnitFutureOps}
-    import scala.util.{Success, Failure}
+  )(worker: Worker): Future[Unit] = Future.repeat {
+    val request = proto.worker.ThisId(thisId)
+    val append = appendIntoCollected(counter)(_)
 
-    val collectedAllPartitions = Promise[Unit]()
-    val maxPartitionSize = 32 * 1024 * 1024
-
-    def appendIntoCollected(reply: PartitionedRecords): Unit = {
-      import utils.proto.worker.PartitionedRecordsOps
-
-      assert(
-        reply.size == reply.partition.size,
-        "Received partition's size must be same with its specified size."
-      )
-
-      val prefix = counter.increment()
-      val loaded = reply.unpacked._2
-      val file =
-        loaded.writeInto(outputDir / "received" / s"received.${prefix}")
-
-      collectedPartitions += file
-    }
-
-    /* TODO: Fix the problem that each worker receives partition repeatedly. */
-    while (!collectedAllPartitions.isCompleted) {
-      def collected = manager.ensured(maxPartitionSize) {
-        worker.stub.requestPartition(ThisId(thisId)).onComplete {
-          case Success(reply) => appendIntoCollected(reply)
-          case Failure(_) => collectedAllPartitions.fulfill()
-        }
+    manager.requiring(utils.general.maxPartitionSize) {
+      worker.stub.requestPartition(request).map {
+        case PartitionedRecords(Nil, _) =>
+          logger
+            .info(s"[${thisId}] [${worker.id}] Finished requesting partitions.")
+          false
+        case PartitionedRecords(partition, _) =>
+          logger
+            .info(s"[${thisId}] [${worker.id}] Received a partition.")
+          append(partitionToLoaded(partition))
+          true
       }
-
-      Await.ready(collected, 10.seconds)
     }
+  }
 
-    collectedAllPartitions.future
+  private def partitionToLoaded(
+      partition: Seq[RecordMessage]
+  ): LoadedRecords = {
+    import common.Record
+
+    val source = partition.map(message => Record(message.record))
+    LoadedRecords(source)
+  }
+
+  private def appendIntoCollected(
+      counter: utils.concurrent.SafeCounter
+  )(loaded: LoadedRecords): Unit = {
+    import utils.proto.worker.PartitionedRecordsOps
+
+    val prefix = counter.increment()
+    val file =
+      loaded.writeInto(outputDir / "received" / s"received.${prefix}")
+
+    collectedPartitions += file
   }
 
   private def merge(
       counter: utils.concurrent.SafeCounter,
       queue: utils.concurrent.SafeQueue[Seq[DiskRecords]],
       manager: utils.memory.MemoryManager
-  ): Future[Unit] = Future {
+  ): Future[Unit] = Future.repeat {
     import scala.concurrent.Await
     import scala.concurrent.duration._
 
-    while (queue.size >= 2)
-      Await.ready(mergeTwoDiskFiles(counter, queue, manager), 10.seconds)
+    if (queue.size >= 2) {
+      mergeTwoDiskFiles(counter, queue, manager).map { _ => true }
+    } else
+      Future(false)
   }
 
   private def mergeTwoDiskFiles(
@@ -295,20 +302,25 @@ class Service(
       queue: utils.concurrent.SafeQueue[Seq[DiskRecords]],
       manager: utils.memory.MemoryManager
   ): Future[Unit] = {
+    import scala.collection.mutable.ListBuffer
     import utils.concurrent.UnitFutureOps
+    import utils.general.maxPartitionSize
 
-    val memoryNeededToMerge = 64 * 1024 * 1024
-    val maxFileSize = 32 * 1024 * 1024
+    def writeAndAppend = writeIntoTargetAndAppendWith(counter)(_, _)
 
-    manager.ensured(memoryNeededToMerge) {
+    manager.ensured(maxPartitionSize * 2) {
       val q1 = Queue.from(queue.dequeue())
       val q2 = Queue.from(queue.dequeue())
+      val merged = ListBuffer[DiskRecords]()
 
       while (q1.nonEmpty && q2.nonEmpty) {
         val target = LoadedRecords()
 
+        /* TODO: This is problematic... */
         val file1 = q1.dequeue()
         val file2 = q2.dequeue()
+
+        logger.info(s"[${thisId}] Merging ${file1.path} with ${file2.path}.")
 
         val arr1 = file1.loadAll().contents
         val arr2 = file2.loadAll().contents
@@ -325,17 +337,41 @@ class Service(
             i2 += 1
           }
 
-          if (target.sizeInByte == maxFileSize) {
-            val prefix = counter.increment()
-            target.writeIntoAndClear(outputDir / s"partition.${prefix}")
-          }
+          if (target.sizeInByte == maxPartitionSize)
+            writeAndAppend(target, merged)
         }
 
-        if (target.nonEmpty) {
-          val prefix = counter.increment()
-          target.writeIntoAndClear(outputDir / s"partition.${prefix}")
+        while (i1 < arr1.length) {
+          target += arr1(i1)
+          i1 += 1
+
+          if (target.sizeInByte == maxPartitionSize)
+            writeAndAppend(target, merged)
         }
+
+        while (i2 < arr2.length) {
+          target += arr2(i2)
+          i2 += 1
+
+          if (target.sizeInByte == maxPartitionSize)
+            writeAndAppend(target, merged)
+        }
+
+        if (target.nonEmpty)
+          writeAndAppend(target, merged)
       }
+
+      queue.enqueue(merged.toSeq)
     }
+  }
+
+  private def writeIntoTargetAndAppendWith(
+      counter: utils.concurrent.SafeCounter
+  )(
+      target: LoadedRecords,
+      written: scala.collection.mutable.ListBuffer[DiskRecords]
+  ): Unit = {
+    val prefix = counter.increment()
+    target.writeIntoAndClear(outputDir / s"partition.${prefix}")
   }
 }

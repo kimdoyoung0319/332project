@@ -1,8 +1,8 @@
 package utils
 
-import java.util.Collection
-
 package object general {
+  val maxPartitionSize = 32 * 1024 * 1024
+
   implicit object ByteArrayOrdering extends math.Ordering[Array[Byte]] {
     def compare(x: Array[Byte], y: Array[Byte]): Int = {
       assert(x.size == y.size, "Two byte arrays must have equal size.")
@@ -66,14 +66,16 @@ package proto {
 
     implicit class PartitionedRecordsOps(message: PartitionedRecords)
         extends ProtoMessage {
-      def unpacked: (Int, LoadedRecords) = {
-        val (size, partition) = (message.size, message.partition)
-        val records = partition.map { recordMessage =>
-          Record(recordMessage.unpacked)
-        }.toArray
-        val loaded = LoadedRecords(records)
-
-        (size, loaded)
+      def unpacked: Option[LoadedRecords] = {
+        if (message.partition.nonEmpty) {
+          val records = message.partition.map { recordMessage =>
+            Record(recordMessage.unpacked)
+          }.toArray
+          val loaded = LoadedRecords(records)
+          Some(loaded)
+        } else {
+          None
+        }
       }
     }
   }
@@ -96,6 +98,7 @@ package proto {
 package object grpc {
   import io.grpc._
   import _root_.proto._
+  import general.maxPartitionSize
 
   def makeServer(service: ServerServiceDefinition) =
     ServerBuilder.forPort(0).addService(service).build
@@ -104,10 +107,17 @@ package object grpc {
     master.MasterServiceGrpc.stub(makeChannel(ip, port))
 
   def makeWorkerStub(ip: String, port: Int) =
-    worker.WorkerServiceGrpc.stub(makeChannel(ip, port))
+    worker.WorkerServiceGrpc.stub(makeBigChannel(ip, port))
 
   private def makeChannel(ip: String, port: Int) =
     ManagedChannelBuilder.forAddress(ip, port).usePlaintext().build
+
+  private def makeBigChannel(ip: String, port: Int) =
+    ManagedChannelBuilder
+      .forAddress(ip, port)
+      .usePlaintext()
+      .maxInboundMessageSize(maxPartitionSize)
+      .build
 }
 
 package object concurrent {
@@ -135,6 +145,12 @@ package object concurrent {
 
     def forall[T](futures: Seq[Future[T]]): Future[Unit] =
       companion.sequence(futures).map { _ => () }
+
+    def repeat(callback: => Future[Boolean]): Future[Unit] =
+      callback.map {
+        case true => callback
+        case false => ()
+      }
   }
 
   implicit class UnitPromiseOps(promise: scala.concurrent.Promise[Unit]) {
@@ -145,6 +161,8 @@ package object concurrent {
     import scala.concurrent.Future
 
     def after[T](callback: => T): Future[T] = future.map { _ => callback }
+    def flatAfter[T](callback: => Future[T]): Future[T] =
+      future.flatMap { _ => callback }
   }
 
   implicit class PromiseOps[T](promise: scala.concurrent.Promise[T]) {
@@ -202,6 +220,6 @@ package object concurrent {
   }
 
   object SafeQueue {
-    def apply[T](source: Seq[T]) = new SafeQueue[T](source)
+    def apply[T](source: Iterable[T]) = new SafeQueue[T](source.toSeq)
   }
 }
