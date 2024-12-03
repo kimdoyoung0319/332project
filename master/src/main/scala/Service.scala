@@ -128,6 +128,8 @@ class Service(count: Int, finished: scala.concurrent.Promise[Unit])
   }
 
   private def startSortingPhase: Unit = {
+    logger.info(s"Starting sorting phase...")
+
     val all = Future
       .sequence {
         for (worker <- workers)
@@ -150,6 +152,8 @@ class Service(count: Int, finished: scala.concurrent.Promise[Unit])
   }
 
   private def startShufflingPhase: Unit = {
+    logger.info(s"Starting shuffling phase...")
+
     val all = Future
       .sequence {
         for (worker <- workers)
@@ -161,10 +165,12 @@ class Service(count: Int, finished: scala.concurrent.Promise[Unit])
   }
 
   private def startMergingPhase: Unit = {
+    logger.info(s"Starting merging phase...")
+
     val all = Future
       .sequence {
         for (worker <- workers)
-          yield worker.stub.startShuffling(proto.common.Empty())
+          yield worker.stub.startMerging(proto.common.Empty())
       }
       .map { _ => () }
 

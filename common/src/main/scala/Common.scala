@@ -29,11 +29,23 @@ object Record {
 
   object Key { val length = 10 }
 
+  def apply[CC <: Iterable[Byte]](source: CC): Record = {
+    assert(source.size == length, "The source size in bytes must be 100 bytes.")
+
+    val key = source.slice(0, Key.length).toArray
+    val value = source.slice(Key.length, length).toArray
+
+    new Record(key, value)
+  }
+
   def apply(source: Array[Byte]): Record = {
-    assert(source.size == length)
+    assert(source.size == length, "The source size in bytes must be 100 bytes.")
 
     new Record(source.slice(0, Key.length), source.slice(Key.length, length))
   }
+
+  def apply(source: com.google.protobuf.ByteString): Record =
+    apply(source.toByteArray)
 
   implicit object Ordering extends scala.Ordering[Record] {
     def compare(x: Record, y: Record): Int =
@@ -48,7 +60,7 @@ object Key {
 class LoadedRecords(val contents: collection.mutable.ArrayBuffer[Record]) {
   /* This methods creates new directory when there's no such directory as
      specified in path. Also, notice that it discards existing contents in
-     path. */
+     the file specified by path. */
   def writeInto(path: os.Path): DiskRecords = {
     val serialized = Array.from(contents.flatMap(_.serialized))
     os.write.over(
@@ -79,17 +91,20 @@ object LoadedRecords {
   def apply(): LoadedRecords =
     new LoadedRecords(ArrayBuffer())
 
-  def apply(source: Array[Record]): LoadedRecords =
+  def apply[CC <: IterableOnce[Record]](source: CC): LoadedRecords =
     new LoadedRecords(ArrayBuffer.from(source))
+
+  def apply(source: Array[Record]): LoadedRecords =
+    new LoadedRecords(source.clone.to(ArrayBuffer))
 
   def fromBytes(source: Array[Byte]): LoadedRecords = {
     assert(
       source.size % Record.length == 0,
       "The input source's length must be divisible evenly by the length of records"
     )
-    val grouped = source.grouped(Record.length).map(Record(_)).toArray
 
-    this(grouped)
+    val grouped = source.grouped(Record.length).map(Record(_))
+    apply(grouped)
   }
 }
 

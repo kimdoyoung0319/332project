@@ -30,7 +30,6 @@ message PartitionAnchors {
 }
 
 message PartitionedRecords {
-  uint32 size = 1;
   repeated RecordMessage partition = 2;
 }
 

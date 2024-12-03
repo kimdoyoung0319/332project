@@ -2,7 +2,7 @@ package utils.memory
 
 class MemoryManager {
   import scala.concurrent.{Future, Promise}
-  import utils.concurrent.global
+  import utils.concurrent.{global, UnitPromiseOps, UnitFutureOps}
 
   private val runtime = Runtime.getRuntime
   private val percentage = 0.8
@@ -28,8 +28,6 @@ class MemoryManager {
   }
 
   def release(size: Long): Unit = synchronized {
-    import utils.concurrent.UnitPromiseOps
-
     availableMemory += size
 
     while (
@@ -41,13 +39,17 @@ class MemoryManager {
     }
   }
 
-  def ensured[T](requestedMemory: Long)(block: => T): Future[T] = {
-    import utils.concurrent.UnitFutureOps
-
+  def ensured[T](requestedMemory: Long)(block: => T): Future[T] =
     request(requestedMemory).after {
       val result = block
       release(requestedMemory)
       result
     }
-  }
+
+  def requiring[T](requestedMemory: Long)(block: => Future[T]): Future[T] =
+    request(requestedMemory).flatAfter {
+      val result = block
+      result.onComplete { case _ => release(requestedMemory) }
+      result
+    }
 }
