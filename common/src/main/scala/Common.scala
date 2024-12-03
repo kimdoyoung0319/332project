@@ -93,9 +93,12 @@ object LoadedRecords {
   }
 }
 
-class DiskRecords(path: os.Path) {
+class DiskRecords(val path: os.Path) {
   def load(recordOffset: Int, recordCount: Int): LoadedRecords = {
-    assert(recordOffset > 0, "Starting index must be larger than 0.")
+    assert(
+      recordOffset >= 0,
+      "Starting index must be larger than or equal to 0."
+    )
     assert(recordCount > 0, "The number of records must be larger than 0.")
 
     val offset = recordOffset * Record.length
