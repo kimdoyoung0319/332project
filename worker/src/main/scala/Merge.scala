@@ -53,7 +53,7 @@ class Merger(
     logger.info(s"[${thisId}] {${id}} Merging two disk records sequence...")
     for (firstDiskRecord <- first)
       logger.info(s"[${thisId}] {${id}} First: ${firstDiskRecord.path}")
-    for (secondDiskRecord <- first)
+    for (secondDiskRecord <- second)
       logger.info(s"[${thisId}] {${id}} Second: ${secondDiskRecord.path}")
 
     val outputBuffer = LoadedRecords()
