@@ -53,5 +53,12 @@ lazy val worker = (project in file("worker"))
     assembly / assemblyMergeStrategy := {
       case PathList("META-INF", _*) => MergeStrategy.discard
       case _ => MergeStrategy.first
-    }
+    },
+    fork in run := true,
+    javaOptions in run ++= Seq(
+      "-Xmx5G",
+      "-Xms5G",
+      "-XX:+HeapDumpOnOutOfMemoryError",
+      "-XX:+UseG1GC"
+    )
   )

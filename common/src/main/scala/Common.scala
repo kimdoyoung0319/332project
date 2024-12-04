@@ -58,6 +58,8 @@ object Key {
 }
 
 class LoadedRecords(val contents: collection.mutable.ArrayBuffer[Record]) {
+  def apply(index: Int): Record = contents(index)
+
   /* This methods creates new directory when there's no such directory as
      specified in path. Also, notice that it discards existing contents in
      the file specified by path. */
@@ -73,7 +75,8 @@ class LoadedRecords(val contents: collection.mutable.ArrayBuffer[Record]) {
 
   def writeIntoAndClear(path: os.Path): DiskRecords = {
     val result = writeInto(path)
-    contents.clear()
+    contents.clearAndShrink(0)
+    contents.trimToSize()
     result
   }
 
@@ -83,6 +86,7 @@ class LoadedRecords(val contents: collection.mutable.ArrayBuffer[Record]) {
   def sizeInByte: Long = contents.size * Record.length
   def isEmpty: Boolean = contents.isEmpty
   def nonEmpty: Boolean = !isEmpty
+  def size: Int = contents.size
 }
 
 object LoadedRecords {
@@ -140,6 +144,13 @@ class DiskRecords(val path: os.Path) {
     Array.from(load(0, count).contents)
 
   def sizeInByte: Long = os.size(path)
+
+  def size: Int = sizeInByte.toInt / Record.length
+
+  def movedInto(target: os.Path): DiskRecords = {
+    os.move(path, target, replaceExisting = true, createFolders = true)
+    DiskRecords(target)
+  }
 }
 
 object DiskRecords {
