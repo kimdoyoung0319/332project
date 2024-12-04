@@ -54,6 +54,8 @@ class Service(
   private lazy val workerToIndices = hasConstructedIndices.value
   private lazy val mergedDiskRecords = hasMergedDiskRecords.value
 
+  private val collectedPartitions = utils.concurrent.SafeBuffer[DiskRecords]()
+
   def informOthers(request: AllWorkers): Future[Empty] = Future {
     assert(
       request.count == request.workers.size,
@@ -147,7 +149,7 @@ class Service(
       val partition = loaded.contents.map(_.toMessage).toSeq
 
       logger.info(
-        s"[${thisId}] [${request.id}] Received partition request. Sending partition of size ${partition.size}"
+        s"[${thisId}] [${request.id}] Received partition request. Sending partition of size ${partition.size}."
       )
 
       PartitionedRecords(partition)
@@ -157,7 +159,7 @@ class Service(
   }
 
   def startMerging(request: Empty): Future[Empty] = {
-    val merger = new Merger(sortedDiskRecords, outputDir, thisId)
+    val merger = new Merger(collectedPartitions.toSeq, outputDir, thisId)
 
     merger.run().map { mergedDiskRecords =>
       hasMergedDiskRecords.success(mergedDiskRecords)
@@ -228,8 +230,6 @@ class Service(
       (diskRecords, (start, end))
     }
   }
-
-  val collectedPartitions = utils.concurrent.SafeBuffer[DiskRecords]()
 
   private def collectPartitionFrom(
       counter: utils.concurrent.SafeCounter

@@ -34,14 +34,17 @@ class Merger(
       }
       .map { _ =>
         val finalSortedFiles = mergeTaskQueue.dequeue()
-        diskRecordsMovedIntoOutputDirectory(finalSortedFiles)
+        val movedSortedFiles =
+          diskRecordsMovedIntoOutputDirectory(finalSortedFiles)
+
+        cleanTempDirs()
+        movedSortedFiles
       }
   }
 
-  /* TODO: Fix the problem where the files are not popped properly. */
   private def mergeWorkerFuture(id: Int): Future[Unit] = Future.repeat {
     mergeTaskQueue.tryDequeueTwo() match {
-      case None => Future(false)
+      case None                  => Future(false)
       case Some((first, second)) => mergeTwoDiskRecordsSeq(id)(first, second)
     }
   }
@@ -51,8 +54,10 @@ class Merger(
       second: DiskRecordsSeq
   ): Future[Boolean] = MemoryManager.ensured(memoryNeededToMerge) {
     logger.info(s"[${thisId}] {${id}} Merging two disk records sequence...")
+
     for (firstDiskRecord <- first)
       logger.info(s"[${thisId}] {${id}} First: ${firstDiskRecord.path}")
+
     for (secondDiskRecord <- second)
       logger.info(s"[${thisId}] {${id}} Second: ${secondDiskRecord.path}")
 
@@ -68,7 +73,13 @@ class Merger(
     var firstIndex = 0
     var secondIndex = 0
 
-    while (firstQueue.nonEmpty && secondQueue.nonEmpty) {
+    var finished = false
+
+    while (!finished) {
+      logger.info(
+        s"[${thisId}] {${id}} Merging ${firstDiskRecords.path} with ${secondDiskRecords.path}."
+      )
+
       val indices =
         mergeTwoDiskRecords(id)(
           firstDiskRecords,
@@ -87,10 +98,19 @@ class Merger(
         "Either first disk record or second disk record should have been read completely."
       )
 
-      if (firstIndex == firstDiskRecords.size)
+      val firstExhausted =
+        (firstIndex == firstDiskRecords.size) && firstQueue.isEmpty
+      val secondExhausted =
+        (secondIndex == secondDiskRecords.size) && secondQueue.isEmpty
+
+      finished = firstExhausted || secondExhausted
+
+      if (firstIndex == firstDiskRecords.size && !finished)
         firstDiskRecords = firstQueue.dequeue()
-      else
+
+      if (secondIndex == secondDiskRecords.size && !finished)
         secondDiskRecords = secondQueue.dequeue()
+      /* check loop invariant */
     }
 
     exhaustDiskRecordsInto(
@@ -115,7 +135,7 @@ class Merger(
     mergeTaskQueue.enqueue(sortedDiskRecordsList.toSeq)
 
     logger.info(
-      s"[${thisId}] {${id}} Finished merging two files. The output sequence is..."
+      s"[${thisId}] {${id}} Finished merging two sequences. The output sequence is..."
     )
     for (sorted <- sortedDiskRecordsList)
       logger.info(s"[${thisId}] {$id} ${sorted.path}")
@@ -131,6 +151,10 @@ class Merger(
       outputBuffer: LoadedRecords,
       sortedDiskRecordsList: ListBuffer[DiskRecords]
   ): (Int, Int) = {
+    logger.info(
+      s"[${thisId}] {${id}} Merging ${first.path} with ${second.path}."
+    )
+
     val firstLoaded = first.loadAll()
     val secondLoaded = second.loadAll()
 
@@ -156,13 +180,15 @@ class Merger(
       diskRecords: DiskRecords,
       buffer: LoadedRecords,
       sorteds: ListBuffer[DiskRecords],
-      index: Int
+      initialIndex: Int
   ): Unit = {
     val loaded = diskRecords.loadAll()
+    var index = initialIndex
 
-    while (index < diskRecords.size) {
+    while (index < loaded.size) {
       buffer += loaded(index)
       checkAndWriteClear(buffer, sorteds)
+      index += 1
     }
   }
 
@@ -183,7 +209,7 @@ class Merger(
   ): Unit = {
     import utils.general.maxPartitionSize
 
-    if (buffer.size == maxPartitionSize)
+    if (buffer.sizeInByte >= maxPartitionSize)
       writeClear(buffer, sorteds)
   }
 
@@ -192,7 +218,17 @@ class Merger(
       sorteds: ListBuffer[DiskRecords]
   ): Unit = {
     val postfix = counter.increment()
-    sorteds += buffer.writeIntoAndClear(outputDir / "temp" / s"temp.${postfix}")
+
+    logger.info(
+      s"[${thisId}] Writing the merged file into ${outputDir}/temp/temp.${postfix}"
+    )
+
+    sorteds += buffer.writeIntoAndClear(
+      outputDir / "temp" / s"temp.${postfix}."
+    )
+    logger.info(
+      s"[${thisId}] Writed the buffer out into ${outputDir}/temp/temp.${postfix}."
+    )
   }
 
   private def diskRecordsMovedIntoOutputDirectory(
@@ -202,5 +238,11 @@ class Merger(
       val diskRecords = diskRecordsSeq(postfix)
       diskRecords.movedInto(outputDir / s"partition.${postfix}")
     }
+  }
+
+  private def cleanTempDirs(): Unit = {
+    os.remove.all(outputDir / "temp")
+    os.remove.all(outputDir / "received")
+    os.remove.all(outputDir / "sorted")
   }
 }
