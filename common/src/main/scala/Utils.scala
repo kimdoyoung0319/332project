@@ -9,7 +9,7 @@ package object general {
 
       for (i <- 0 until x.size) {
         if (x(i) != y(i))
-          return (x(i).toShort & 0xFF) - (y(i).toShort & 0xFF)
+          return (x(i).toShort & 0xff) - (y(i).toShort & 0xff)
       }
 
       return 0
@@ -17,7 +17,7 @@ package object general {
   }
 
   implicit class ByteOps(byte: Byte) {
-    def toHexString: String = String.format("%02X", byte & 0xFF)
+    def toHexString: String = String.format("%02X", byte & 0xff)
   }
 
   implicit class ByteStringOps(bytes: com.google.protobuf.ByteString) {
@@ -147,9 +147,9 @@ package object concurrent {
       companion.sequence(futures).map { _ => () }
 
     def repeat(callback: => Future[Boolean]): Future[Unit] =
-      callback.map {
-        case true => callback
-        case false => ()
+      callback.flatMap {
+        case true  => repeat(callback)
+        case false => Future.unit
       }
   }
 
@@ -173,7 +173,7 @@ package object concurrent {
     import scala.util.{Success, Failure}
 
     def after[U](callback: T => U): Unit = future.onComplete {
-      case Success(value) => callback(value)
+      case Success(value)     => callback(value)
       case Failure(exception) => throw exception
     }
   }
