@@ -75,8 +75,7 @@ class LoadedRecords(val contents: collection.mutable.ArrayBuffer[Record]) {
 
   def writeIntoAndClear(path: os.Path): DiskRecords = {
     val result = writeInto(path)
-    contents.clearAndShrink(0)
-    contents.trimToSize()
+    contents.clear()
     result
   }
 
