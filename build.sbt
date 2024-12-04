@@ -40,7 +40,7 @@ lazy val master = (project in file("master"))
     assembly / assemblyJarName := "master.jar",
     assembly / assemblyMergeStrategy := {
       case PathList("META-INF", _*) => MergeStrategy.discard
-      case _ => MergeStrategy.first
+      case _                        => MergeStrategy.first
     }
   )
 
@@ -52,10 +52,10 @@ lazy val worker = (project in file("worker"))
     assembly / assemblyJarName := "worker.jar",
     assembly / assemblyMergeStrategy := {
       case PathList("META-INF", _*) => MergeStrategy.discard
-      case _ => MergeStrategy.first
+      case _                        => MergeStrategy.first
     },
-    fork in run := true,
-    javaOptions in run ++= Seq(
+    run / fork := true,
+    run / javaOptions ++= Seq(
       "-Xmx5G",
       "-Xms5G",
       "-XX:+HeapDumpOnOutOfMemoryError",
