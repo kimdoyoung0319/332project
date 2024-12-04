@@ -26,7 +26,7 @@ class Merger2(
     while (recordsPriorityQueue.nonEmpty) {
       recordsBuffer += recordsPriorityQueue.dequeue()
 
-      if (recordsBuffer.sizeInByte == utils.general.maxPartitionSize)
+      if (recordsBuffer.sizeInByte >= utils.general.maxPartitionSize)
         mergedDiskRecords += recordsBuffer.writeIntoAndClear(
           outputDir / s"partition.${postfix}"
         )
