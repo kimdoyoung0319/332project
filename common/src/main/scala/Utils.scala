@@ -147,9 +147,9 @@ package object concurrent {
       companion.sequence(futures).map { _ => () }
 
     def repeat(callback: => Future[Boolean]): Future[Unit] =
-      callback.map {
-        case true => callback
-        case false => ()
+      callback.flatMap {
+        case true => repeat(callback)
+        case false => Future.unit
       }
   }
 
@@ -217,6 +217,14 @@ package object concurrent {
       extends java.util.concurrent.ConcurrentLinkedQueue[T](source.asJava) {
     def enqueue(elem: T): Unit = super.add(elem)
     def dequeue(): T = super.poll()
+    def tryDequeueTwo(): Option[(T, T)] = synchronized {
+      if (super.size >= 2) {
+        val first = dequeue()
+        val second = dequeue()
+        Some((first, second))
+      } else
+        None
+    }
   }
 
   object SafeQueue {
