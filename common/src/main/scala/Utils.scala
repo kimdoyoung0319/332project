@@ -148,11 +148,7 @@ package object concurrent {
 
     def repeat(callback: => Future[Boolean]): Future[Unit] =
       callback.flatMap {
-<<<<<<< HEAD
-        case true => repeat(callback)
-=======
         case true  => repeat(callback)
->>>>>>> 1c90716f93b997fda54cb739be7e48cbe8b3e417
         case false => Future.unit
       }
   }
