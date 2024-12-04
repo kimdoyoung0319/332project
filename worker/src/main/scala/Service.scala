@@ -159,7 +159,7 @@ class Service(
   }
 
   def startMerging(request: Empty): Future[Empty] = {
-    val merger = new Merger(collectedPartitions.toSeq, outputDir, thisId)
+    val merger = new Merger2(collectedPartitions.toSeq, outputDir, thisId)
 
     merger.run().map { mergedDiskRecords =>
       hasMergedDiskRecords.success(mergedDiskRecords)
