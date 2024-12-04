@@ -182,7 +182,7 @@ class Service(
       val postfix = counter.increment()
 
       loaded.sort()
-      loaded.writeInto(outputDir / "sorted" / s"sorted.${postfix}")
+      loaded.writeIntoAndClear(outputDir / "sorted" / s"sorted.${postfix}")
     }
   }
 
@@ -268,7 +268,7 @@ class Service(
 
     val postfix = counter.increment()
     val file =
-      loaded.writeInto(outputDir / "received" / s"received.${postfix}")
+      loaded.writeIntoAndClear(outputDir / "received" / s"received.${postfix}")
 
     collectedPartitions += file
   }
