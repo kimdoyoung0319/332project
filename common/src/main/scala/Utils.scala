@@ -1,7 +1,7 @@
 package utils
 
 package object general {
-  val maxPartitionSize = 32 * 1024 * 1024
+  val maxPartitionSize = 32 * 1000 * 1000
 
   implicit object ByteArrayOrdering extends math.Ordering[Array[Byte]] {
     def compare(x: Array[Byte], y: Array[Byte]): Int = {
