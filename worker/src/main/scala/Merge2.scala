@@ -12,6 +12,8 @@ class Merger2(
 
   type DiskRecordsSeq = Seq[DiskRecords]
 
+  private val logger = utils.logger.LoggerFactoryUtil.getLogger("worker")
+
   def run(): Future[DiskRecordsSeq] = Future {
     logger.info(
       s"[${thisId}] Merging ${sortedFiles.size} files, whose names are..."
