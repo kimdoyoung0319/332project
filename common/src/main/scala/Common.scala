@@ -47,7 +47,7 @@ object Record {
   def apply(source: com.google.protobuf.ByteString): Record =
     apply(source.toByteArray)
 
-  implicit object Ordering extends scala.Ordering[Record] {
+  implicit object Ordering extends scala.math.Ordering[Record] {
     def compare(x: Record, y: Record): Int =
       utils.general.ByteArrayOrdering.compare(x.key, y.key)
   }

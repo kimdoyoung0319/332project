@@ -15,7 +15,7 @@ class Merger2(
   type DiskRecordsSeq = Seq[DiskRecords]
 
   def run(): Future[DiskRecordsSeq] = Future {
-    val recordsPriorityQueue = PriorityQueue[Record]()
+    val recordsPriorityQueue = PriorityQueue[Record]()(Record.Ordering.reverse)
     val mergedDiskRecords = ListBuffer[DiskRecords]()
     var postfix = 0
 
