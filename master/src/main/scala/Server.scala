@@ -25,7 +25,7 @@ class Server(count: Int) {
   }
 
   private def executeScript(port: Int, size: String): Unit = {
-    val scriptName = "deploy_worker.sh"
+    val scriptName = ".deploy_worker.sh"
     val scriptPath = os.Path(s"/home/blue/scripts/$scriptName")
     try {
       val result = os.proc(scriptPath, port.toString, size).call()
