@@ -1,7 +1,5 @@
 package worker
 
-import common.LoadedRecords
-
 class Merger2(
     sortedFiles: Seq[common.DiskRecords],
     outputDir: os.Path,
@@ -15,6 +13,12 @@ class Merger2(
   type DiskRecordsSeq = Seq[DiskRecords]
 
   def run(): Future[DiskRecordsSeq] = Future {
+    logger.info(
+      s"[${thisId}] Merging ${sortedFiles.size} files, whose names are..."
+    )
+    for (sortedFile <- sortedFiles)
+      logger.info(s"[${thisId}] ${sortedFile.path}")
+
     val recordsPriorityQueue = PriorityQueue[Record]()(Record.Ordering.reverse)
     val mergedDiskRecords = ListBuffer[DiskRecords]()
     var postfix = 0
