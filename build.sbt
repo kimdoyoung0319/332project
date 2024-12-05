@@ -56,9 +56,8 @@ lazy val worker = (project in file("worker"))
     },
     run / fork := true,
     run / javaOptions ++= Seq(
-      "-Xmx10G",
-      "-Xms10G",
-      "-XX:+HeapDumpOnOutOfMemoryError",
+      "-Xmx14G",
+      "-Xms14G",
       "-XX:+UseG1GC"
     )
   )
