@@ -30,7 +30,6 @@ class Merger2(
         mergedDiskRecords += recordsBuffer.writeIntoAndClear(
           outputDir / s"partition.${postfix}"
         )
-        postfix += 1
       }
     }
 
