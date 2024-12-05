@@ -1,3 +1,5 @@
+/* Deprecated and old, but left here for future reasons. See Merge2.scala
+   instead if you want to see merge implementation that is currently used. */
 package worker
 
 class Merger(
