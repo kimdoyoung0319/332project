@@ -1,6 +1,7 @@
 # Ignore all dotfiles except this .gitignore.
 .*
 !.gitignore
+!scripts/.deploy_worker.sh
 
 # Ignore intermediate build directory produced by sbt.
 target/

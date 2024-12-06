@@ -9,12 +9,11 @@ class Server(count: Int) {
   private val service = new Service(count, finished)
   private val server = utils.grpc.makeServer(service.binded)
 
-  def start(size: String): Unit = {
+  def start(inputPath: String): Unit = {
     server.start()
-    val port = server.getPort()
     logger.info(s"Master server listening to ${server.getPort()} started.")
-    println(s"${utils.network.thisIp}:$port")
-    executeScript(port, size)
+    println(s"${utils.network.thisIp}:${server.getPort()}")
+    executeScript(inputPath)
   }
 
   def await(): Unit = server.awaitTermination()
@@ -24,12 +23,14 @@ class Server(count: Int) {
     server.shutdown()
   }
 
-  private def executeScript(port: Int, size: String): Unit = {
+  private def executeScript(inputPath: String): Unit = {
     val scriptName = ".deploy_worker.sh"
-    val scriptPath = os.Path(s"/home/blue/scripts/$scriptName")
+    val scriptPath = os.pwd / "scripts" / scriptName
     try {
-      val result = os.proc(scriptPath, port.toString, size).call()
-      logger.info(s"Executed $scriptName with port $port: ${result.out.text().trim}")
+      val MASTER_IP = utils.network.thisIp
+      val MASTER_PORT = server.getPort().toString
+      val result = os.proc(scriptPath, MASTER_IP, MASTER_PORT, inputPath, count.toString).call()
+      logger.info(s"Executed $scriptName with port $MASTER_PORT: ${result.out.text().trim}")
     } catch {
       case e: os.SubprocessException =>
         logger.error(s"Failed to execute $scriptName: ${e.getMessage}")
