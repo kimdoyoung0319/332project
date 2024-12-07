@@ -1,3 +1,4 @@
+If you want to check this week's progress, please read PROGRESS.md!
 ## 공통(셸 스크립트 or 수동실행)
 
 ### 0. 프로젝트를 마스터머신에 불러온다.
