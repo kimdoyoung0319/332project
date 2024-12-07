@@ -11,7 +11,6 @@ n=${#WORKER_IPS[@]}
 declare -A size_map=(["small"]=2 ["big"]=10 ["large"]=100)
 size_keys=("small" "big" "large")
 
-WORKER_FILE="$HOME/332project/scripts/.worker_id_map.txt"
 
 # Aux function
 function distribute_bashrc {
@@ -200,48 +199,13 @@ function run_master {
   echo "Run master command completed."
 }
 
-function validate_sorted_data {
-  RESULT_FILE="$HOME/output/whole"
-  VALSORT="$HOME/gensort/valsort"
-
-  echo "Starting validation process for all workers..."
-
-  # Read workers ip, id is worker_id_map.txt
-  if [[ -f "$WORKER_FILE" ]]; then
-    while IFS=, read -r id ip; do
-      echo
-      echo "Processing worker ID: $id with IP: $ip"
-
-      ssh -n blue@"$ip" "
-        FILE_COUNT=\$(ls ~/output/partition.* 2>/dev/null | wc -l)
-        if [ \"\$FILE_COUNT\" -eq 0 ]; then
-          echo 'No partition files found. Skipping worker.'
-          exit 1
-        fi
-        cat ~/output/partition.* > \"$RESULT_FILE\"
-        \"$VALSORT\" \"$RESULT_FILE\"
-        head -n 2 \"$RESULT_FILE\"
-        tail -n 2 \"$RESULT_FILE\"
-      "
-    done < "$WORKER_FILE"
-  else
-    echo "Error: Worker file not found at $WORKER_FILE"
-    exit 1
-  fi
-
-  echo
-  echo "Validation process completed for all workers."
-}
-
 function show_menu {
   echo
   echo "==================== MENU ===================="
   echo "1. Check Worker Status"
   echo "2. Init worker environment"
   echo "3. Start Master Process"
-  echo "4. Validate Sorted Data"
-  echo "5. Reset ~/output Directory"
-  echo "6. (AUX) Developer Menu"
+  echo "4. (AUX) Developer Menu"
   echo "0. Exit"
   echo "=============================================="
 }
@@ -251,8 +215,9 @@ function aux_menu {
   echo "==================== Developer Menu ===================="
   echo "1. Distribute .bashrc"
   echo "2. Distribute gensort,valsort"
-  echo "3. Generate gensort data for all sizes (Disable)"
-  echo "4. Update Git Repos"
+  echo "3. Generate gensort data for all sizes"
+  echo "4. Reset ~/output Directory"
+  echo "5. Update Git Repos"
   echo "0. Exit"
   echo "========================================================"
 }
@@ -272,12 +237,6 @@ while true; do
       start_master_process
       ;;
     4)
-      validate_sorted_data
-      ;;
-    5)
-      reset_worker_output
-      ;;
-    6)
       while true; do
         aux_menu
         read -p "Select an option in Developer Menu: " aux_choice
@@ -289,14 +248,16 @@ while true; do
             distribute_gensort_valsort
             ;;
           3)
-            echo "Disable (uncomment if you want to use it)"
-#            echo "Running gensort for all sizes..."
-#            for size_key in "${size_keys[@]}"; do
-#              generate_inputdata $size_key
-#            done
-#            echo "All gensort tasks completed for all sizes."
+            echo "Running gensort for all sizes..."
+            for size_key in "${size_keys[@]}"; do
+              generate_inputdata $size_key
+            done
+            echo "All gensort tasks completed for all sizes."
             ;;
           4)
+            reset_worker_output
+            ;;
+          5)
             update_git_repos
             ;;
           0)

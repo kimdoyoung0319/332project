@@ -13,9 +13,7 @@ class Server(count: Int) {
     server.start()
     logger.info(s"Master server listening to ${server.getPort()} started.")
     println(s"${utils.network.thisIp}:${server.getPort()}")
-    if (inputPath != null) {
-      executeScript(inputPath)
-    }
+    executeScript(inputPath)
   }
 
   def await(): Unit = server.awaitTermination()

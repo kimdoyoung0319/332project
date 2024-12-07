@@ -54,7 +54,6 @@ class Service(count: Int, finished: scala.concurrent.Promise[Unit])
       }
       .map { _ => () }
 
-    writeWorkerInfoToFile() /* Use only for valSort */
     allInformed.completeWith(all)
   }
 
@@ -190,16 +189,5 @@ class Service(count: Int, finished: scala.concurrent.Promise[Unit])
     }
 
     all.foreach { _ => finished.fulfill() }
-  }
-
-  private def writeWorkerInfoToFile(): Unit = {
-    import os._
-    val filePath = os.pwd / "scripts" / ".worker_id_map.txt"
-
-    /* File write workers ID mapping info (to use in valSort) */
-    os.write.over(
-      filePath,
-      workers.toSeq.sortBy(_.id).map(worker => s"${worker.id},${worker.ip}").mkString("\n")
-    )
   }
 }
