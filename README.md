@@ -9,8 +9,6 @@ git clone https://github.com/kimdoyoung0319/332project.git
 
 ## SHELL SCRIPT를 사용해서 자동 실행
 
----------------
-
 ### 1. root를 기준으로 프로젝트 내부 scripts 디렉토리로 이동한다.(절대경로: /home/blue/332project/scripts/)로 이동한다.
 ```
 cd /home/blue/332project/scripts
