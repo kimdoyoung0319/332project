@@ -105,8 +105,17 @@ Menu의 (4)번을 실행하면, 각 Worker들이 정렬 과정에서 Master Mach
     Select an option: 4
 
     Starting validation process for all workers...
+    
     Processing worker ID: 0 with IP: 2.2.2.101
-    ~~~
+    Records: 596089
+    Checksum: 48ce4c622c81d
+    Duplicate keys: 0
+    SUCCESS - all records are in order
+        "O!uve  000000000000000000000000001228D4  77778888000022224444DDDDDDDDEEEE00000000CCCC7777DDDD
+       ,K4a-:v  000000000000000000000000001B8132  5555EEEE888899994444FFFF1111CCCCEEEE1111EEEE6666FFFF
+    (qI0A`N!VB  00000000000000000000000000238636  EEEEDDDD5555EEEE000088882222EEEE8888000011111111BBBB
+    (qI>u%3ekC  000000000000000000000000000A4B90  4444CCCC66664444222288880000666688882222444433331111
+    ~~~    
 
 ### 8. (선택) 재실행을 위한 output directory 초기화
 한 번의 분산 정렬 실행 된 이후, 새로 분산 정렬을 돌리기 위해서는 기존의 output 결과를 제거해주어야 한다. 
