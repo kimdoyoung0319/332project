@@ -36,14 +36,14 @@ bash manage_workers.sh
     Checking status of Worker $ip...
     Worker $ip is reachable.
     ~~~
-### 5. 2번을 실행해 각 워커머신에 프로젝트를 깃으로 부터 불러온다.
+### 5. 2번을 실행해 각 워커머신에 프로젝트를 Git으로부터 불러온다.
     Select an option: 2    
     Starting Git repository reset and output directory setup on all workers...
     Resetting Git repository and output directory on $WORKER_IP...
     Removing existing 332project directory...
     Cloning fresh repository...
     ~~~
-### 6. 3번을 실행해 분산정렬을 시작하면된다. input path는 /home/blue/dataset/{small, big, large}라고 가정한다.
+### 6. 3번을 실행해 분산정렬을 시작하면된다. (Input Path는 /home/blue/dataset/{small, big, large}라고 가정한다.)
     Select an option: 3
     Enter the number of worker machines to operate (1-10): 10 #(실행할 워커머신 수)
     Enter the input path (absolute path required): /home/blue/dataset/big
@@ -66,7 +66,7 @@ bash manage_workers.sh
     36:32 INFO  master - [9] 2.2.2.109:44311
     36:32 INFO  master - Shutting down master server...
     
-### 7. (분산 정렬 후) 분산정렬이 끝나고 새로 분산정렬을 돌리기 위해서 output파일을 비워준다.(4번에서 실행)
+### 7. (분산 정렬 후) 분산정렬이 끝나고 새로 분산정렬을 돌리기 위해서 output파일을 비워준다. (4번 실행)
     ==================== MENU ====================
     1. Check Worker Status
     2. Init worker environment
