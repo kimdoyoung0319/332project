@@ -1,349 +1,197 @@
-POSTECH CSED332 Team Project
----
-Let's implement distrobuted sorting!
+If you want to check this week's progress, please read [PROGRESS.md](https://github.com/kimdoyoung0319/332project/blob/main/PROGRESS.md)!
 
-## Milestones
+## 공통 (셸 스크립트 또는 수동 실행)
+분산 시스템을 실행하기 위해 Shell script로 간단한 UI를 설계했다. Menu를 차례대로 실행하면 원하는 동작을 수행할 수 있다. 
+문제 상황이 발생할 것을 고려하여 수동 실행 방법도 함께 설명해두었다. (하단 토글 참고)
 
-<details>
-<summary> Milestones for previous weeks </summary>
+### 0. Master Machine에 Project를 Clone (공통)
+```
+git clone https://github.com/kimdoyoung0319/332project.git
+```    
+&nbsp;   
 
-### Week 1
-* Learn about libraries such as [gRPC](https://grpc.io/docs/languages/go/basics/), [Protobuf](https://protobuf.dev), and [Future class](https://docs.scala-lang.org/overviews/core/futures.html) of Scala.
-* Plan overall design of the program.
-  - What classes, objects, functions, enums to introduce?
-  - How should master and worker machine communicate?
-* Set up Git repository.
+## SHELL SCRIPT를 사용해서 자동 실행
 
-### Week 2
-* Keep studying on important notions and usages of libraries.
-* Write down concrete design of the program.
-  - What classes to introduce?
-  - What will be the interfaces of those classes?
-  - In what methods should master and worker machine communicate?
-  - How should we exploit parallelism on each machine?
-* Make out some of unit test cases based on the interface.
-* Survive on the midterm exam (Good Luck!).
+### 1. 프로젝트 내부 scripts 디렉토리로 이동
+(절대경로 예시: /home/blue/332project/scripts/)로 이동한다.
 
-### Week 3
-* Collect some more ideas, if any.
-* Milestone Specification
-* ~~Start to code - not necessarily.~~
-  - If the design is not complete yet, i.e. we don't have (at least) specified interfaces, or there's some ambiguity on it, delay to code.
-* ~~**Important**: Start difficult part early if we decided to start implementing.~~
-  - This might be 'shuffle' part...
-* ~~Make some more unit tests according to the design, revise them if it became old.~~
+    cd ~/332project/scripts
 
+### 2. 명령어를 통해 manage_workers 스크립트 실행
+./manage_worker.sh로도 실행 가능하다. 
 
+    bash manage_workers.sh
 
-### Week 4
-* Study the required libraries for implementation and work on individual design components:   
-  our team agrees with the premise of the Mythical Man-Month, deciding to allocate significant time to studying and planning, recognizing the importance of thorough preparation in avoiding inefficiencies during implementation.😵
-* Share individual design components, and explore better solutions for the project together.
-* Design and Implementation Plan Specification.
+### 3. 스크립트 실행 이후 메뉴 확인
+    ==================== MENU ====================
+    1. Check Worker Status
+    2. Init worker environment
+    3. Start Master Process
+    4. Validate Sorted Data
+    5. Reset ~/output Directory
+    0. Exit
+    ==============================================
+    Select an option:
 
+각 Menu 항목의 기능은 다음과 같다.
+   - 1 ) 현재 Master Machine에서 Worker Machine 간의 통신이 원할한지 확인 (Ping check)
+   - 2 ) 각 Worker Machine(2.2.2.101~2.2.2.110)을 순회하면서 project폴더를 git clone하고, output 디렉토리를 생성
+   - 3 ) [**MAIN**] Master Machine을 시작 (정렬 시작)
+   - 4 ) 각 Worker Machine의 output 폴더에 출력된 결과에 대해 정렬 상태를 확인
+   - 5 ) Master Machine 재실행을 위한 output directory 초기화
 
-### Week 5
-* Running and debugging implementation environment settings and test code
-* overall design plan (in progress)
-* How do I do the integration test?
-* Discuss the issues you faced during your work.
-
-
-
-### Week 6
-* **Prepare for presentation!**
-* Add *details* to the finalized design.
-  - When too much data is concentrated in one partition.
-  - When disk overflow occurs on worker machines during shuffling.
-  - Defining services for communication between machines using a proto file.
-  - Shuffling algorithm
-* Distribute coding tasks based on the finalized design. (based on phases)
-* Coding!
-  - **overall phase**
-    1. Master can send phase service.
-    2. Each worker can performs different tasks based on the phase flag.
-
-
-</details>
-
-### Week 7
-
-**Design changed:** So, the implementation plan below differs from our actual implementation.
-* Continue coding while commiting your code to your Git branch.
-  - Implement the services defined in the proto file on the worker.
-  - ~~**sorting phase:**~~
-    1. ~~A Worker can sort data in its disk.~~(Design changed)
-    2. Workers can send sample data to the master.
-  - **sampling phase:**
-    1. ~~Master can sort data in its disk too.~~(Design changed)
-    2. Master can distribute partitions.
-  - **shuffling phase:**
-    1. Workers can connect workers
-       10 workers communicate each other.   
-       A worker server can receive 10 workers client (included itself) request.
-    2. Workers can detect capacity overload on their own disks.
-    3. handling capacity overload.
-  - **merging phase:**
-    1. Workers can merge multiple blocks into a single file while maintaining the order based on the keys.
-* Execute and debug the code.
-
-<details>
-<summary> Milestones for next weeks </summary>
-
-### Week 8
-* Another debugging week.
-  - Identify edge cases to catch bugs.
-* Create test cases to validate overall program.
-  - Load Imbalance (uneven distribution of data)
-  - Network bottleneck
-  - Data consistency
-* Prepare for final presentation.
-  - Summarize our experience through storytelling
-  - Write final report
-
-</details>
-
-## Weekly Progresses
-
-<details>
-<summary> Progresses of previous weeks </summary>
-
-### Week 1
-* Set Git repository up.
-* Done some of documenting, such as writing down milestones.
-  - Not sure this will go as we planned...
-* How to communicate/store temporal documents about the project?
-  - Notion? In-repo markdown? Kakaotalk? Or some other method?
-* Planned to have regular meeting on Saturday.
-* Expected problems:
-  - How to serve/receive records in parallel manner?
-    - Readers/Writers problem, Producer/Consumer problem...
-    - How can we model the problem as a well-known problem?
-  - Index file might be shared smong threads on a machine. How should we ensure consistency of this data structure?
-  - How to exploit parallelism while merging locally?
-
-### Week 2
-- **Saturday Regular Meeting**
-  - Held a regular team meeting on Saturday to discuss progress and clarify next steps.
-
-- **Learned Concepts and Libraries**
-
-  - **1. In-depth Study of gRPC and Protobuf**
-    - **Service Definition**: Defined services and message structures in `.proto` files.
-    - **gRPC Streaming**: Utilized bidirectional streaming between the master and worker nodes.
-    - **Load Balancing**: Discussed how to distribute tasks efficiently when multiple workers are involved.
-    - **Error Handling**: Explored gRPC error codes and retry strategies to handle failures gracefully.
-
-  - **2. Scala's Future and Parallel Programming**
-    - **Future**: Wrote asynchronous code with callbacks to improve non-blocking execution.
-    - **Promise vs Future**: Investigated how `Promise` allows setting values at a specific point in time.
-    - **ExecutionContext Setup and Usage**: Optimized thread pools for efficient execution.
-    - **Concurrency Issue Resolution**: Applied lock-free mechanisms and used `synchronized` to ensure thread safety.
-
-  - **3. Theoretical Background of Distributed Sorting**
-    - **MapReduce Concept**: Studied the MapReduce framework for processing data in a distributed environment.
-    - **Parallel Sorting Algorithms**: Examined how to implement Merge Sort and Quick Sort in parallel.
-    - **Shuffling Optimization**: Optimized data redistribution among worker nodes to improve efficiency.
-
-- **Preparation for OS Project 2 Presentation**
-  - Good luck to everyone on their OS Project 2 presentations! 💪
-
-### Week 3
-- **Saturday Regular Meeting**
-  - **Commit Convention**
-     Our team has agreed to use the following commit format:   
-
-    - **Feat**: Add new features
-    - **Fix**: Bug fixes
-    - **Docs**: Documentation changes
-    - **Style**: Code formatting, missing semicolons, etc., without affecting functionality
-    - **Test**: Add or refactor tests (no changes to production code)
-    - **Chore**: Update build tasks, configure package manager, etc., without changes to production code
-
-    Examples:
+### 4. 마스터머신과 워커머신의 연결 상태 확인
+(1)을 실행한다. 각 Worker Machine에 대해 Ping을 check하고, ssh 명령어를 통해 remote 실행이 가능한지 확인한다.
     
-    ```
-    Feat: Implement sample sorting algorithm
-    Fix: Correct partitioning logic in sample sort
-    Docs: Add documentation for sample sorting approach
-    Style: Reformat sample_sort.cpp for better readability
-    Test: Add test cases for sample sort edge cases
-    Chore: Update Makefile to include sample_sort tests
-    ```
+    Select an option: 1
 
-  - **Communication Tools**
-     - Decide whether to use Discord for communication.
-     - Continue using KakaoTalk and Google Docs for documentation and discussions.
+    Checking status of Worker $ip...
+    Worker $ip is reachable.
+    ~~~
 
-  - **Implementation Strategy**
-     - Discuss how to proceed with the overall implementation.
-     - Learn how to use required libraries and tools.
+### 5. 각 worker machine에 대한 Git clone 및 초기 환경 세팅
+(2)를 실행한다. worker machine에 "\~/project332"와 "\~/output"이 생성되고, 실행을 위한 초기 환경이 구성된다. 
 
-  - **Team Roles and Responsibilities**
-     - Assign roles for research, study, and idea generation.
-     - For this week, everyone will focus on learning library usage and contributing to design ideas.
-     - Once the design becomes more specific, roles will be assigned as follows: A will handle XX class, B will work on YY component, C will take care of ZZ, etc.
+    Select an option: 2 
 
-  - **Weekly Plan Sharing**
-     - Create a separate Google Doc each week to discuss progress.
-     - Summarize discussions and update the README Progress section every Sunday.
-     - Create a new folder named "Software Design Methods" to collect all plans and progress.
+    Starting Git repository reset and output directory setup on all workers...
+    Resetting Git repository and output directory on $WORKER_IP...
+    Removing existing 332project directory...
+    Cloning fresh repository...
+    ~~~
 
-  - **Action Items**
-    - All Members: Study library usage and propose design ideas by the end of the next week.
-      - gRPC and Protobuf Study
-        - Follow the Java Quickstart guide for gRPC: [gRPC Java Quickstart](https://grpc.io/docs/languages/java/quickstart/)
-        - Study Protobuf using the Java tutorial: [Protobuf Java Tutorial](https://protobuf.dev/getting-started/javatutorial/)
-      - Sample Sorting Algorithm
-        - Learn about the sample sorting method: [Samplesort on Wikipedia](https://en.wikipedia.org/wiki/Samplesort)
-      - Scala Concurrent Programming Libraries
-        - Study how to use Scala's Concurrent programming libraries, `Future` and `Promise`: [Futures in Scala](https://docs.scala-lang.org/overviews/core/futures.html)
-    - All Member: Cluster Access Permission
-    - by **Doyoung**: Set up a Google Doc directory for tracking this week's progress.
+### 6. [MAIN] 분산정렬 시작 
+(3)을 실행한다. Master Machine의 Server를 동작하고, 분산 정렬을 위한 모든 동작이 차례대로 수행된다. 
+이 때 Shell에서 2개의 인자를 입력받는다. 
+- 첫번째 인자는 사용한 Worker개수, 두번째 인자는 input_data의 **절대경로**를 넣어주어야 한다. 
+  - First argument(count) : **10** 으로 고정
+  - Second argument(inputPath) : {Test_input_direcory_Absolute_Path}
 
+만약 10보다 작은 값 n을 넣게 되면 worker machine은 2.2.2.101~2.2.2.10n 에 해당하는 n개의 머신을 기준으로 동작한다. 
+이어지는 테스트 예시에서 Input Path는 /home/blue/dataset/{small, big, large}라고 가정한다. 
 
+inputPath가 주어지면, Master의 함수 내부에서 자체적으로 shell script를 통해 각 Worker 머신을 ssh 명령어로 실행한다. 
+ 
+    Select an option: 3
 
-### Week 4
-- [Meeting Minute of This Week](https://docs.google.com/document/d/1_xKZGVFijjB520F2Ul53MoYmUl4QtC2KAgsxgZ_nGt0/edit?usp=sharing)
-- Decided next week's meeting schedule to gather up and start to code.
-  - Thursday 9:30 PM, in GSR of school library.
-- Decided to make sample program before starting to implementing the actual one.
-  - Decided on the concrete interface of it.
-    - Two executables: `master` and `worker`
-    - `master` and `worker` shall work with same arguments of the actual 
-      program.
-      - i.e. `master` should be invoked like `master 5`, and `worker` should be
-        invoked like `worker -I foo -O bar`
-    - However, the operation of them are somewhat different.
-      - Instead of actual distrobuted sorting, master sends two random integers
-        to the workers, and workers perform random computations on it and send
-        it back.
-    - The master prints the IP address and port of itself, and prints the 
-      ordering of the workers, sorted by the values received.
-    - This will help us understand the concrete operation on gRPC and Protobuf,
-      and concurrency in Scala.
-- Decided whom to take responsibility of designing whole system, and whom to 
-  take responsibility of supporting him (by the surgical team model of *the 
-  Mythical Man Month*).
+    Enter the number of worker machines to operate (1-10): 10 
+    Enter the input path (absolute path required): /home/blue/dataset/big
+    Starting Master process with 10 workers and input path /home/blue/dataset/big...
+    
+    ~~~
+    (Master Machine Execution)
+    (Worker# Machines Execution)
+    ~~~
+    
+    Results example:
+    36:32 INFO  master - The whole procedure finished. The order of the workers is...
+    36:32 INFO  master - [1] 2.2.2.106:36849
+    36:32 INFO  master - [0] 2.2.2.107:39431
+    36:32 INFO  master - [2] 2.2.2.101:42361
+    36:32 INFO  master - [3] 2.2.2.104:38099
+    36:32 INFO  master - [4] 2.2.2.110:45263
+    36:32 INFO  master - [5] 2.2.2.105:46159
+    36:32 INFO  master - [6] 2.2.2.102:43117
+    36:32 INFO  master - [7] 2.2.2.108:36053
+    36:32 INFO  master - [8] 2.2.2.103:38783
+    36:32 INFO  master - [9] 2.2.2.109:44311
+    36:32 INFO  master - Shutting down master server...
 
+### 7. (선택) 분산 정렬 완료 후, 결과 확인
+Menu의 (4)번을 실행하면, 각 Worker들이 정렬 과정에서 Master Machine으로부터 할당받은 ID순서대로 valsort를 사용하여 결과를 출력한다.
 
-### Week 5
-- [Meeting Minute of This Week](https://docs.google.com/document/d/1RkFKvAxPYGVAnsNgUA4w1OFz7I9jFjmnB0VoF5iNqqQ/edit?usp=sharing)
-- Held a team meeting via Zoom on Saturday.
+위 출력 결과를 통해 분산정렬이 제대로 동작했는지 확인할 수 있다.
 
-#### Tasks Completed This Week
-- **IntelliJ SSH Connection and Deployment Setup**
-  - (Completed) Copied public keys to enable SSH key-based access to each Worker machine.
-- **Shell Script for Master to Manage Worker Machines**
-  - (Completed) Installed `gensort` on all Worker machines, generated test data, and verified outputs.
-- **Test Code for Master-Worker Communication**
-  - Successfully implemented and tested Request-Response communication between Master and Worker.
-- **Presentation Preparation**
-  - Assigned roles for preparing the presentation.
-  - Presenter : Doyoung Kim, Materials Prepared By : Duhong Kwon, SoonHo Kim
+    Select an option: 4
 
-#### Overall Design of the System
-- [Design Proposal](https://github.com/kimdoyoung0319/332project/blob/doyoung/DESIGN.md)
-- **Defined Phases and Protobuf Integration**
-  - Defined each phase required for the system and outlined Protobuf services and messages for each phase.
-  - In the Sample Phase, Worker machines sort data locally, access indices in strides, and send the sample list to the Master.
-  - Further discussions planned to refine the final design.
+    Starting validation process for all workers...
+    
+    Processing worker ID: 0 with IP: 2.2.2.101
+    Records: 596089
+    Checksum: 48ce4c622c81d
+    Duplicate keys: 0
+    SUCCESS - all records are in order
+        "O!uve  000000000000000000000000001228D4  77778888000022224444DDDDDDDDEEEE00000000CCCC7777DDDD
+       ,K4a-:v  000000000000000000000000001B8132  5555EEEE888899994444FFFF1111CCCCEEEE1111EEEE6666FFFF
+    (qI0A`N!VB  00000000000000000000000000238636  EEEEDDDD5555EEEE000088882222EEEE8888000011111111BBBB
+    (qI>u%3ekC  000000000000000000000000000A4B90  4444CCCC66664444222288880000666688882222444433331111
+    ~~~    
 
+### 8. (선택) 재실행을 위한 output directory 초기화
+한 번의 분산 정렬 실행 된 이후, 새로 분산 정렬을 돌리기 위해서는 기존의 output 결과를 제거해주어야 한다. 
+Menu에서 (5)를 실행하면 각 Worker머신의 ouput 디렉토리를 초기화 해준다. 
 
+    ==================== MENU ====================
+    1. Check Worker Status
+    2. Init worker environment
+    3. Start Master Process
+    4. Validate Sorted Data
+    5. Reset ~/output Directory
+    0. Exit
+    ==============================================
+    Select an option: 5
 
-### Week 6
-- Held a team meeting via Zoom on Sunday.
-- The handling of disk overflow has been decided to be implemented after completing the entire system.
-- [The implemented code can be viewed here.](https://github.com/kimdoyoung0319/332project/tree/doyoung)
+.
 
-#### Changes of Overall Design
-1. The design, which proceeded in the order of **sorting, sampling, shuffling, and merging** has been revised.   
-   -> **Change**: The design now proceeds in the order of **sampling, shuffling, and sorting**.
-2. At sampling phase, after sorting the worker's data, one sample from each distribution range was sent to the master.   
-   -> **Change**: A random sample from the worker's data is now sent to the master. **(No worker sorting before sampling)**
+    [Result Example]
+    Resetting ~/output directory on all workers...
+    Processing worker: 2.2.2.101
+    Worker 2.2.2.101: ~/output directory reset completed.
+    ~~~
 
-#### Tasks Completed This Week
-1. **Defined proto files for communication between master and worker nodes.**
-   - common.proto, master.proto, worker.proto 
-     - **common.proto** defines types that are used commonly in both master and worker. 
-     - **master.proto** defines the requests that workers send to the master. 
-     - **worker.proto** defines requests that the master sends to workers and requests between workers.
-2. Worker sends its IP and port to the master, the master responds with an ID.
-3. **Implemented the following processes in the master(Tested):**
-   - Once all workers are registered, the master initiates sampling.
-   - After collecting sample data, partitioning and shuffling are requested. 
-   - Once shuffling is complete, sorting is requested. 
-   - After sorting, the entire process concludes.
-4. **Implemented the sampling phase(Tested):**
-   - Each worker extracts a sample and sends it to the master, which then creates partitions (range information) and responds accordingly. 
-5. **Implemented the shuffling phase(Not tested yet):**
-   - Each worker is assigned an ID, and partitions are mapped to IDs. 
-   - Workers split their data into blocks based on partitions and store them in a directory **/temp**. They then send blocks corresponding to their mapped partition to other workers. 
-   - StreamObserver is used for handling streaming data. 
-   - Each worker requests data from other workers using its ID and receives responses accordingly. 
-   - All responses from workers are combined into a single future, marking the completion of shuffling. 
-     - Shuffling is implemented asynchronously(**concurrently**) using futures and promises.
-
-#### Next Week's Plan
-1. **Debug shuffling phase**
-   - Although the shuffling phase has been implemented, it requires testing with proper logging.
-2. **Implement sorting phase**
-   - The sorting phase still needs to be implemented and will be handled using external disk sorting.
-3. **Test entire process**
-   - Once sorting is completed, the entire process will be finished.
-4. **Add logic of overflow handling**
-   - Implement handling for disk overflow and memory overflow scenarios.
+    All workers' ~/output directories have been reset.
 
 
-</details>
+&nbsp;
 
-### Week 7
+## 셸이 동작안하는경우(수동 실행)
+만약 Shell script가 동작하지 않는 경우를 대비하여, 각 Machine에서 직접 코드를 동작하는 방법을 설명한다. 
 
-- [The implemented code can be viewed here.](https://github.com/kimdoyoung0319/332project/tree/doyoung)
-- [Held a team meeting via Microsoft Teams on Saturday.](https://docs.google.com/document/d/1J1NHS6zjDWwW70XZ3Qp0CNE-8jWbbqu0WN_dxpdDSLY/edit?usp=sharing)
-
-#### Overall Design Summary
-1. **Init Phase:**
-   - The master is initially executed, and its IP and port are assigned. 
-   - Workers are executed, send their IP and port to the master, and receive their IDs. 
-2. **Sampling Phase:**
-   - Each worker collects the first record from their input blocks (assumed to be 32 MiB each) as samples and sends them to the master. 
-   - The master determines the range based on the received sample data and informs the workers. The workers' IDs are mapped to ranges.
-3. **Shuffling Phase:**
-   - Each input block is sorted before shuffling.
-   - The blocks are divided based on the assigned ranges.
-   - Based on the mapping of IDs to ranges, the divided data is sent to the corresponding worker IDs.
-   - Once all transfers are complete, the workers notify the master.
-4. **Merging Phase (refer to meeting notes):**
-   - Assign an index to each block.
-   - Read one line from each block and insert it into a priority queue, ordering based on the key.
-   - While queue is not empty:
-     - Dequeue to output the record with the smallest key.
-     - Write the dequeued record to the output file.
-     - Read another line from the block that contained the dequeued record and insert it into the priority queue.
-   - The merging is complete, notify the master.
-
-#### Tasks Completed This Week
-1. **Completed the overall system implementation according to the design.**
-   - Verified that the output file is correctly sorted using valsort.
-   - Performed testing using **64MB, 320MB** input data on each of the three worker machines.
-2. Implemented debugging logs that are printed by adding **--debug** to the program execution command.
-3. **Automated all processes** using a **shell script**, allowing the master to perform all phases.
-   - Generate input data on each worker machine using gensort.
-   - After the master executes, each worker is automatically executed.
-
-#### Next Week's Plan
-- Make the Merge Phase Concurrent for improved performance
-  - Current implementation uses a single thread to handle the entire merge process.
-- Enforce mimimum sample size.
-  - Currently, the sample size varies according to the number of blocks.
-- Change code portion where it loads all the block contents into the memory.
-- Clean targetDir/temp and targetDir/sorted directory after the sorting phase.
-- Test system stability with 10 worker machine and large data.
-- **Prepare final presentation.**
 <details>
-<summary> Progresses for next weeks </summary>
+  <summary>수동 실행 방법</summary>
 
-### Week 8
+### 1. 전처리 작업
 
+--------------
+#### 0. 각 워커머신의 blue directory에서 git cloning한다.
+
+---------
+### 2. 마스터
+
+---------
+
+#### 2-1. 프로젝트 디렉토리로 이동한다.(절대경로: /home/blue/332project/)로 이동한다.
+    cd /home/blue/332project/
+#### 2-2. sbt를 실행한다.
+    [blue@vm-1-master 332project]$ sbt
+#### 2-3. 마스터머신을 실행한다.
+    sbt:distrobuted-sorting> runMain master.Main 10
+#### grpc용 마스터 IP와 포트를 출력하는 것을 확인할 수 있다.
+    [info] running master.Main 10
+    07:35 INFO  master - Master server listening to 33632 started.
+    10.1.25.21:33632
+
+
+
+### 3. 워커 (10개의 워커에 각각 접속해 실행해주어야함.)
+
+---------
+
+
+#### 3-1. 프로젝트 디렉토리로 이동한다. (절대경로: /home/blue/332project/)로 이동한다.
+    cd /home/blue/332project/
+#### 3-2. sbt를 실행한다.
+    blue@vm01:~/332project$ sbt
+#### 3-3. worker머신을 실행한다. 
+- 실행 명령어는 "runMain worker.Main [MasterIP]:[MasterPort] -I [Inputdir] -O [Outputdir]"다.
+- MasterIP와 MasterPort는 마스터를 실행하면 확인할 수 있다.
+- Inputdir과 Outputdir은 절대경로를 입력해야한다.
+
+```
+sbt:distrobuted-sorting> 
+runMain worker.Main 10.1.25.21:33632 -I /home/blue/dataset/small -O /home/blue/output
+
+16:31 INFO  worker - Worker server listening to port 38069 started.
+```
+#### 모든 워커머신에 대해 실행이 끝나면 분산정렬 시스템이 가동한다.
 </details>
