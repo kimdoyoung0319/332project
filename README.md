@@ -50,7 +50,7 @@ git clone https://github.com/kimdoyoung0319/332project.git
     ~~~
 
 ### 5. 각 worker machine에 대한 Git clone 및 초기 환경 세팅
-(2)를 실행한다. worker machine에 "~/project332"와 "~/output"이 생성되고, 실행을 위한 초기 환경이 구성된다. 
+(2)를 실행한다. worker machine에 "\~/project332"와 "\~/output"이 생성되고, 실행을 위한 초기 환경이 구성된다. 
 
     Select an option: 2 
 
