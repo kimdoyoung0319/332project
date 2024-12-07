@@ -205,7 +205,8 @@ function show_menu {
   echo "1. Check Worker Status"
   echo "2. Init worker environment"
   echo "3. Start Master Process"
-  echo "4. (AUX) Developer Menu"
+  echo "4. Reset ~/output Directory"
+  echo "5. (AUX) Developer Menu"
   echo "0. Exit"
   echo "=============================================="
 }
@@ -215,9 +216,8 @@ function aux_menu {
   echo "==================== Developer Menu ===================="
   echo "1. Distribute .bashrc"
   echo "2. Distribute gensort,valsort"
-  echo "3. Generate gensort data for all sizes"
-  echo "4. Reset ~/output Directory"
-  echo "5. Update Git Repos"
+  echo "3. Generate gensort data for all sizes (Disable)"
+  echo "4. Update Git Repos"
   echo "0. Exit"
   echo "========================================================"
 }
@@ -237,6 +237,9 @@ while true; do
       start_master_process
       ;;
     4)
+      reset_worker_output
+      ;;
+    5)
       while true; do
         aux_menu
         read -p "Select an option in Developer Menu: " aux_choice
@@ -248,16 +251,14 @@ while true; do
             distribute_gensort_valsort
             ;;
           3)
-            echo "Running gensort for all sizes..."
-            for size_key in "${size_keys[@]}"; do
-              generate_inputdata $size_key
-            done
-            echo "All gensort tasks completed for all sizes."
+            echo "Disable (uncomment if you want to use it)"
+#            echo "Running gensort for all sizes..."
+#            for size_key in "${size_keys[@]}"; do
+#              generate_inputdata $size_key
+#            done
+#            echo "All gensort tasks completed for all sizes."
             ;;
           4)
-            reset_worker_output
-            ;;
-          5)
             update_git_repos
             ;;
           0)
