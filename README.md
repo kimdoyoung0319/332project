@@ -9,15 +9,15 @@ git clone https://github.com/kimdoyoung0319/332project.git
 
 ## SHELL SCRIPT를 사용해서 자동 실행
 
-### 1. 프로젝트 내부 scripts 디렉토리로 이동한다.(절대경로: /home/blue/332project/scripts/)로 이동한다.
+### A. 프로젝트 내부 scripts 디렉토리로 이동한다.(절대경로: /home/blue/332project/scripts/)로 이동한다.
 
     cd /home/blue/332project/scripts
 
-### 2. 명령어를 통해 manage_workers 스크립트를 실행시킨다.
+### B. 명령어를 통해 manage_workers 스크립트를 실행시킨다.
 
     bash manage_workers.sh
 
-### 3. 스크립트를 실행시키면 1~5번의 선택지를 확인할 수 있다.
+### C. 스크립트를 실행시키면 1~5번의 선택지를 확인할 수 있다.
     ==================== MENU ====================
     1. Check Worker Status
     2. Init worker environment
@@ -30,19 +30,19 @@ git clone https://github.com/kimdoyoung0319/332project.git
    - 1번: 현재 마스터머신에서 워커머신으로 통신이 원할한지 확인한다.
    - 2번: 소스파일이 포함된 project폴더를 git clone해준다.
    - 3번: 마스터머신과 워커머신간 분산정렬 시스템을 실행한다.
-### 4. 먼저 1번을 실행해 마스터머신과 워커머신의 연결이 원할한지를 확인한다.(ssh가 가능한지 확인)
+### D. 먼저 1번을 실행해 마스터머신과 워커머신의 연결이 원할한지를 확인한다.(ssh가 가능한지 확인)
     Select an option: 1
     Checking status of Worker $ip...
     Worker $ip is reachable.
     ~~~
-### 5. 2번을 실행해 각 워커머신에 프로젝트를 Git으로부터 불러온다.
+### E. 2번을 실행해 각 워커머신에 프로젝트를 Git으로부터 불러온다.
     Select an option: 2    
     Starting Git repository reset and output directory setup on all workers...
     Resetting Git repository and output directory on $WORKER_IP...
     Removing existing 332project directory...
     Cloning fresh repository...
     ~~~
-### 6. 3번을 실행해 분산정렬을 시작하면된다. (Input Path는 /home/blue/dataset/{small, big, large}라고 가정한다.)
+### F. 3번을 실행해 분산정렬을 시작하면된다. (Input Path는 /home/blue/dataset/{small, big, large}라고 가정한다.)
     Select an option: 3
     Enter the number of worker machines to operate (1-10): 10 #(실행할 워커머신 수)
     Enter the input path (absolute path required): /home/blue/dataset/big
@@ -65,13 +65,13 @@ git clone https://github.com/kimdoyoung0319/332project.git
     36:32 INFO  master - [9] 2.2.2.109:44311
     36:32 INFO  master - Shutting down master server...
 
-### (선택) 7. 분산 정렬 완료 후 4번을 통해 분산정렬이 제대로 동작했는지를 확인할 수 있다.
+### (선택) G. 분산 정렬 완료 후 4번을 통해 분산정렬이 제대로 동작했는지를 확인할 수 있다.
     Select an option: 4
     Starting validation process for all workers...
 
     Processing worker ID: 0 with IP: 2.2.2.101
 
-### (선택) 8. (분산 정렬 후) 분산정렬이 끝나고 새로 분산정렬을 돌리기 위해서 output파일을 비워준다. (5번 실행)
+### (선택) H. (분산 정렬 후) 분산정렬이 끝나고 새로 분산정렬을 돌리기 위해서 output파일을 비워준다. (5번 실행)
     ==================== MENU ====================
     1. Check Worker Status
     2. Init worker environment
