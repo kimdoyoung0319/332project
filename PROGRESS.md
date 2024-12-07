@@ -344,8 +344,9 @@ Let's implement distrobuted sorting!
 </details>
 
 ### Week 8
+- [Held a team meeting via Microsoft Teams on Thursday.](https://docs.google.com/document/d/1E4C8ttiGtFwmg9t5JB9NjH7PSvvY3HFQSfMIXfsRH0A/edit?usp=sharing)
 #### Tasks Completed This Week
 
-1. **The program has been tested, and the correctness of the sorting has been verified on small, big, and large datasets.**
-2. **The execution of the master and worker programs has been automated using a shell script, and several other features have been implemented. Please refer to the README for more details.**
-3. **Prepared the presentation.**
+1. The program has been tested, and the correctness of the sorting has been verified on small, big, and large datasets.
+2. The execution of the master and worker programs has been automated using a shell script, and several other features have been implemented. Please refer to the README for more details.
+3. Prepared the presentation.
