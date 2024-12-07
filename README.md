@@ -4,7 +4,7 @@ If you want to check this week's progress, please read [PROGRESS.md](https://git
 분산 시스템을 실행하기 위해 Shell script로 간단한 UI를 설계했다. Menu를 차례대로 실행하면 원하는 동작을 수행할 수 있다. 
 문제 상황이 발생할 것을 고려하여 수동 실행 방법도 함께 설명해두었다. (하단 토글 참고)
 
-### 0. Master Machine에 Project를 불러온다. (공통)
+### 0. Master Machine에 Project를 Clone (공통)
 ```
 git clone https://github.com/kimdoyoung0319/332project.git
 ```    
