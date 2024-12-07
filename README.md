@@ -52,6 +52,7 @@ git clone https://github.com/kimdoyoung0319/332project.git
     (워커 실행)
     ~~~
     결과 예시:
+    (중략)
     36:32 INFO  master - The whole procedure finished. The order of the workers is...
     36:32 INFO  master - [1] 2.2.2.106:36849
     36:32 INFO  master - [0] 2.2.2.107:39431
