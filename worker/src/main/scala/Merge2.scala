@@ -1,56 +1,74 @@
 package worker
 
 class Merger2(
-    sortedFiles: Seq[common.DiskRecords],
-    outputDir: os.Path,
-    thisId: Int
-) {
+               sortedFiles: Seq[common.DiskRecords], // DiskRecords 입력
+               outputDir: os.Path,
+               thisId: Int
+             ) {
   import scala.concurrent.Future
   import scala.collection.mutable.{PriorityQueue, ListBuffer}
-  import common.{DiskRecords, LoadedRecords, Record}
+  import common.Record
   import utils.concurrent.global
-
-  type DiskRecordsSeq = Seq[DiskRecords]
 
   private val logger = utils.logger.LoggerFactoryUtil.getLogger("worker")
 
-  def run(): Future[DiskRecordsSeq] = Future {
-    logger.info(
-      s"[${thisId}] Merging ${sortedFiles.size} files, whose names are..."
-    )
-    for (sortedFile <- sortedFiles)
-      logger.info(s"[${thisId}] ${sortedFile.path}")
+  def run(): Future[Seq[common.DiskRecords]] = Future {
+    logger.info(s"[${thisId}] Merging ${sortedFiles.size} files...")
 
-    val recordsPriorityQueue = PriorityQueue[Record]()(Record.Ordering.reverse)
-    val mergedDiskRecords = ListBuffer[DiskRecords]()
+    // 각 DiskRecords의 이터레이터 생성
+    val iterators = sortedFiles.map(f => new MergeIterator(f))
+
+    // PriorityQueue를 사용해 병합
+    val recordsPriorityQueue = PriorityQueue[(Record, Int)]()(
+      Ordering.by[(Record, Int), Record](_._1).reverse
+    )
+
+    // 각 이터레이터의 첫 번째 레코드 초기화
+    iterators.zipWithIndex.foreach {
+      case (it, idx) if it.hasNext => recordsPriorityQueue.enqueue((it.next(), idx))
+      case _ => // 이터레이터가 비어 있는 경우 건너뜀
+    }
+
+    val mergedFiles = ListBuffer[common.DiskRecords]()
+    val recordsBuffer = new ListBuffer[Record]()
     var postfix = 0
 
-    for (sortedFile <- sortedFiles; record <- sortedFile.loadAll().contents)
-      recordsPriorityQueue.enqueue(record)
-
-    val recordsBuffer = LoadedRecords()
     while (recordsPriorityQueue.nonEmpty) {
-      recordsBuffer += recordsPriorityQueue.dequeue()
+      val (record, idx) = recordsPriorityQueue.dequeue()
+      recordsBuffer += record
 
-      if (recordsBuffer.sizeInByte >= utils.general.maxPartitionSize) {
-        mergedDiskRecords += recordsBuffer.writeIntoAndClear(
-          outputDir / s"partition.${postfix}"
-        )
+      // 버퍼가 임계 크기 이상이면 디스크에 기록
+      if (recordsBuffer.size * Record.length >= utils.general.maxPartitionSize) {
+        mergedFiles += writePartition(recordsBuffer, postfix)
+        recordsBuffer.clear()
         postfix += 1
+      }
+
+      // 이터레이터에서 다음 레코드 가져오기
+      if (iterators(idx).hasNext) {
+        recordsPriorityQueue.enqueue((iterators(idx).next(), idx))
       }
     }
 
-    if (recordsBuffer.nonEmpty)
-      mergedDiskRecords += recordsBuffer.writeIntoAndClear(
-        outputDir / s"partition.${postfix}"
-      )
+    // 남은 데이터 처리
+    if (recordsBuffer.nonEmpty) {
+      mergedFiles += writePartition(recordsBuffer, postfix)
+    }
 
-    cleanTempDirs()
-    mergedDiskRecords.toSeq
+    // 이터레이터 리소스 정리
+    iterators.foreach(_.close())
+
+    mergedFiles.toSeq
   }
 
-  private def cleanTempDirs(): Unit = {
-    os.remove.all(outputDir / "received")
-    os.remove.all(outputDir / "sorted")
+  private def writePartition(buffer: ListBuffer[Record], postfix: Int): common.DiskRecords = {
+    val path = outputDir / s"partition.${postfix}"
+    val outputStream = os.write.outputStream(path, createFolders = true)
+    try {
+      buffer.foreach(record => outputStream.write(record.serialized))
+    } finally {
+      outputStream.close()
+    }
+    common.DiskRecords(path)
   }
 }
