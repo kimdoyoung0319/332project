@@ -164,12 +164,13 @@ Menu에서 (5)를 실행하면 각 Worker머신의 ouput 디렉토리를 초기�
     cd /home/blue/332project/
 #### 2-2. sbt를 실행한다.
     [blue@vm-1-master 332project]$ sbt
-#### 2-3. 마스터머신을 실행한다.
-    sbt:distrobuted-sorting> runMain master.Main 10
+#### 2-3. 마스터 프로젝트로 들어가서 머신을 실행한다.
+    sbt:distrobuted-sorting> project master
+    sbt:distrobuted-sorting> run 10
 #### grpc용 마스터 IP와 포트를 출력하는 것을 확인할 수 있다.
     [info] running master.Main 10
     07:35 INFO  master - Master server listening to 33632 started.
-    10.1.25.21:33632
+    10.1.25.21:33632 <- 워커 머신을 실행하는데 필요.
 
 
 
@@ -183,13 +184,14 @@ Menu에서 (5)를 실행하면 각 Worker머신의 ouput 디렉토리를 초기�
 #### 3-2. sbt를 실행한다.
     blue@vm01:~/332project$ sbt
 #### 3-3. worker머신을 실행한다. 
-- 실행 명령어는 "runMain worker.Main [MasterIP]:[MasterPort] -I [Inputdir] -O [Outputdir]"다.
+- worker 프로젝트로 접근한다.
+- 실행 명령어는 "run [MasterIP]:[MasterPort] -I [Inputdir] -O [Outputdir]"다.
 - MasterIP와 MasterPort는 마스터를 실행하면 확인할 수 있다.
 - Inputdir과 Outputdir은 절대경로를 입력해야한다.
 
 ```
-sbt:distrobuted-sorting> 
-runMain worker.Main 10.1.25.21:33632 -I /home/blue/dataset/small -O /home/blue/output
+sbt:distrobuted-sorting> project worker
+sbt:distrobuted-sorting> run 10.1.25.21:33632 -I /home/blue/dataset/small -O /home/blue/output
 
 16:31 INFO  worker - Worker server listening to port 38069 started.
 ```
