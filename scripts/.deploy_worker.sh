@@ -29,6 +29,8 @@ for((i=0; i < COUNT; i+=1)); do
   " &
 done
 
+#runMain worker.Main 10.1.25.21:46456 -I /home/blue/dataset/big -O /home/blue/output
+
 #  ssh blue@"$worker_ip" "
 #    export PATH=/home/cse/openlogic-openjdk-8u422-b05-linux-x64/bin:\$PATH && \
 #    cd ~/332project && \
