@@ -1,4 +1,7 @@
-If you want to check this week's progress, please read [PROGRESS.md](https://github.com/kimdoyoung0319/332project/blob/main/PROGRESS.md)!
+If you want to check this week's progress, please read [PROGRESS](https://github.com/kimdoyoung0319/332project/blob/main/documents/PROGRESS.md)
+
+
+Then, the source of final presentation is in [Final Presentation](https://github.com/kimdoyoung0319/332project/blob/main/documents/Final_presentation.pptx)
 
 ## 공통 (셸 스크립트 또는 수동 실행)
 분산 시스템을 실행하기 위해 Shell script로 간단한 UI를 설계했다. Menu를 차례대로 실행하면 원하는 동작을 수행할 수 있다. 
