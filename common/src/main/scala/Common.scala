@@ -11,7 +11,7 @@ object Worker {
 }
 
 case class Record(key: Array[Byte], value: Array[Byte])
-    extends Ordered[Record] {
+  extends Ordered[Record] {
   assert(key.size + value.size == Record.length)
 
   def serialized = key ++ value
@@ -65,11 +65,7 @@ class LoadedRecords(val contents: collection.mutable.ArrayBuffer[Record]) {
      the file specified by path. */
   def writeInto(path: os.Path): DiskRecords = {
     val serialized = Array.from(contents.flatMap(_.serialized))
-    os.write.over(
-      target = path,
-      data = serialized,
-      createFolders = true
-    )
+    writeBytesToFile(path, serialized)
     DiskRecords(path)
   }
 
@@ -77,6 +73,15 @@ class LoadedRecords(val contents: collection.mutable.ArrayBuffer[Record]) {
     val result = writeInto(path)
     contents.clear()
     result
+  }
+
+  private def writeBytesToFile(path: os.Path, data: Array[Byte]): Unit = {
+    val outputStream = os.write.outputStream(path, createFolders = true)
+    try {
+      outputStream.write(data) // 데이터 쓰기
+    } finally {
+      outputStream.close() // 명시적으로 닫기
+    }
   }
 
   def sort(): Unit = contents.sortInPlace()
@@ -121,12 +126,15 @@ class DiskRecords(val path: os.Path) {
 
     val offset = recordOffset * Record.length
     val count = recordCount * Record.length
-    val contents = os.read.bytes(path, offset, count)
+    val contents = readBytesFromFile(path, offset, count)
 
     LoadedRecords.fromBytes(contents)
   }
 
-  def loadAll(): LoadedRecords = LoadedRecords.fromBytes(os.read.bytes(path))
+  def loadAll(): LoadedRecords = {
+    val contents = readBytesFromFile(path, 0, os.size(path).toInt)
+    LoadedRecords.fromBytes(contents)
+  }
 
   def loadAt(index: Int): Record = {
     val offset = index * Record.length
@@ -134,9 +142,25 @@ class DiskRecords(val path: os.Path) {
     assert(index >= 0, "Index to be loaded must be positive or zero.")
     assert(offset < sizeInByte, "Index must be within the file size.")
 
-    val contents = os.read.bytes(path, offset, Record.length)
-
+    val contents = readBytesFromFile(path, offset, Record.length)
     Record(contents)
+
+  }
+
+  private def readBytesFromFile(
+                                 path: os.Path,
+                                 offset: Int,
+                                 length: Int
+                               ): Array[Byte] = {
+    val inputStream = os.read.inputStream(path)
+    try {
+      val buffer = new Array[Byte](length)
+      inputStream.skip(offset.toLong)
+      inputStream.read(buffer, 0, length)
+      buffer
+    } finally {
+      inputStream.close() // 명시적으로 닫기
+    }
   }
 
   def grabSample(count: Int): Array[Record] =
