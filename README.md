@@ -150,50 +150,62 @@ Menu에서 (5)를 실행하면 각 Worker머신의 ouput 디렉토리를 초기�
 <details>
   <summary>수동 실행 방법</summary>
 
-### 1. 전처리 작업
+## Master Machine 
 
---------------
-#### 0. 각 워커머신의 blue directory에서 git cloning한다.
-
----------
-### 2. 마스터
-
----------
-
-#### 2-1. 프로젝트 디렉토리로 이동한다.(절대경로: /home/blue/332project/)로 이동한다.
+#### 1. 프로젝트 디렉토리로 이동
+프로젝트를 설치할 Home dicectory에서 git clone을 실행한다. 
+이후 해당 프로젝트 디렉토리로 이동한다. (e.g. /home/blue/332project/)
+ 
+    git clone https://github.com/kimdoyoung0319/332project.git
     cd /home/blue/332project/
-#### 2-2. sbt를 실행한다.
+
+#### 2. sbt 실행
     [blue@vm-1-master 332project]$ sbt
-#### 2-3. 마스터 프로젝트로 들어가서 머신을 실행한다.
+
+#### 3. Master project에 대한 명령어 실행
+서브 모듈로 구성되어 있는 project master를 접속한 이후에 명령어를 실행한다.
+run에 넘겨지는 인자는 "실행할 Worker 개수(n)"이다. 
+
     sbt:distrobuted-sorting> project master
-    sbt:distrobuted-sorting> run 10
-#### grpc용 마스터 IP와 포트를 출력하는 것을 확인할 수 있다.
+    sbt:master> run 10
+
+grpc에 사용되는 Master IP와 Port가 출력되고, n개의 Worker가 자신의 Info를 등록하는 것을 대기한다. 
+
     [info] running master.Main 10
     07:35 INFO  master - Master server listening to 33632 started.
     10.1.25.21:33632 <- 워커 머신을 실행하는데 필요.
 
 
+## Worker Machine
+Master 머신을 실행한 이후에, 인자로 넘긴 n개의 워커에 각각 접속해 아래 명령어를 실행한다. 
 
-### 3. 워커 (10개의 워커에 각각 접속해 실행해주어야함.)
-
----------
-
-
-#### 3-1. 프로젝트 디렉토리로 이동한다. (절대경로: /home/blue/332project/)로 이동한다.
+#### 1. 프로젝트 디렉토리 이동
+프로젝트를 설치하는 과정은 Master Machine과 동일하다. 
+Git clone 이후 해당 프로젝트 디렉토리로 이동한다.
+ 
+    git clone https://github.com/kimdoyoung0319/332project.git
     cd /home/blue/332project/
-#### 3-2. sbt를 실행한다.
+
+#### 2. sbt 실행
+
     blue@vm01:~/332project$ sbt
-#### 3-3. worker머신을 실행한다. 
-- worker 프로젝트로 접근한다.
-- 실행 명령어는 "run [MasterIP]:[MasterPort] -I [Inputdir] -O [Outputdir]"다.
-- MasterIP와 MasterPort는 마스터를 실행하면 확인할 수 있다.
+
+#### 3. worker머신 실행 
+worker 프로젝트로 접근한 뒤 명령어를 실행한다. 
+- 실행 명령어 : **run [MasterIP]:[MasterPort] -I [Inputdir] -O [Outputdir]**
+- MasterIP와 MasterPort는 Master Machine을 run한 뒤 출력되는 결과를 확인하여 입력한다. 
 - Inputdir과 Outputdir은 절대경로를 입력해야한다.
+- (Shell UI 구현에선 Outputdir = "$HOME/output"를 Default 값으로 설정)
 
 ```
 sbt:distrobuted-sorting> project worker
-sbt:distrobuted-sorting> run 10.1.25.21:33632 -I /home/blue/dataset/small -O /home/blue/output
+sbt:worker> run 10.1.25.21:33632 -I /home/blue/dataset/small -O /home/blue/output
 
 16:31 INFO  worker - Worker server listening to port 38069 started.
 ```
-#### 모든 워커머신에 대해 실행이 끝나면 분산정렬 시스템이 가동한다.
+
+&nbsp; 
+&nbsp;   
+---
+모든 Worker Machine에 대해 실행하면, 분산정렬 시스템이 동작한다.
 </details>
