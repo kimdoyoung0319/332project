@@ -45,6 +45,8 @@ git clone https://github.com/kimdoyoung0319/332project.git
     
     Select an option: 1
 
+Output Results Example
+
     Checking status of Worker $ip...
     Worker $ip is reachable.
     ~~~
@@ -53,6 +55,8 @@ git clone https://github.com/kimdoyoung0319/332project.git
 (2)를 실행한다. worker machine에 "\~/project332"와 "\~/output"이 생성되고, 실행을 위한 초기 환경이 구성된다. 
 
     Select an option: 2 
+
+Output Results Example
 
     Starting Git repository reset and output directory setup on all workers...
     Resetting Git repository and output directory on $WORKER_IP...
@@ -76,6 +80,9 @@ inputPath가 주어지면, Master의 함수 내부에서 자체적으로 shell s
 
     Enter the number of worker machines to operate (1-10): 10 
     Enter the input path (absolute path required): /home/blue/dataset/big
+
+Output Results Example
+
     Starting Master process with 10 workers and input path /home/blue/dataset/big...
     
     ~~~
@@ -104,6 +111,8 @@ Menu의 (4)번을 실행하면, 각 Worker들이 정렬 과정에서 Master Mach
 
     Select an option: 4
 
+Output Results Example
+
     Starting validation process for all workers...
     
     Processing worker ID: 0 with IP: 2.2.2.101
@@ -131,9 +140,8 @@ Menu에서 (5)를 실행하면 각 Worker머신의 ouput 디렉토리를 초기�
     ==============================================
     Select an option: 5
 
-.
+Output Results Example
 
-    [Result Example]
     Resetting ~/output directory on all workers...
     Processing worker: 2.2.2.101
     Worker 2.2.2.101: ~/output directory reset completed.
