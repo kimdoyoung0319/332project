@@ -185,6 +185,49 @@ function start_master_process {
   run_master $COUNT $INPUT_PATH
 }
 
+function validate_sorted_data {
+  WORKER_FILE="$HOME/332project/scripts/.worker_id_map.txt"
+  RESULT_FILE="$HOME/output/whole"
+  VALSORT="$HOME/gensort/valsort"
+
+  echo "Starting validation process for all workers..."
+
+  # Read workers ip, id is worker_id_map.txt
+  if [[ -f "$WORKER_FILE" ]]; then
+    while IFS=, read -r id ip || [[ -n "$id" ]]; do
+      echo
+      echo "Processing worker ID: $id with IP: $ip"
+
+      ssh -n blue@"$ip" "
+        FILE_COUNT=\$(ls ~/output/partition.* 2>/dev/null | wc -l)
+        echo \"Number of partition files: \$FILE_COUNT\"
+
+        if [ \"\$FILE_COUNT\" -eq 0 ]; then
+          echo 'No partition files found. Skipping worker.'
+          exit 1
+        fi
+
+        > \"$RESULT_FILE\"
+        for i in \$(seq 0 \$((FILE_COUNT - 1))); do
+          if [[ -f ~/output/partition.\$i ]]; then
+            cat ~/output/partition.\$i >> \"$RESULT_FILE\"
+          fi
+        done
+
+        \"$VALSORT\" \"$RESULT_FILE\"
+        head -n 2 \"$RESULT_FILE\"
+        tail -n 2 \"$RESULT_FILE\"
+      "
+    done < "$WORKER_FILE"
+  else
+    echo "Error: Worker file not found at $WORKER_FILE"
+    exit 1
+  fi
+
+  echo
+  echo "Validation process completed for all workers."
+}
+
 function run_master {
   local COUNT=$1
   local INPUT_PATH=$2
@@ -205,8 +248,9 @@ function show_menu {
   echo "1. Check Worker Status"
   echo "2. Init worker environment"
   echo "3. Start Master Process"
-  echo "4. Reset ~/output Directory"
-  echo "5. (AUX) Developer Menu"
+  echo "4. Validate Sorted Data"
+  echo "5. Reset ~/output Directory"
+  echo "6. (AUX) Developer Menu"
   echo "0. Exit"
   echo "=============================================="
 }
@@ -237,9 +281,12 @@ while true; do
       start_master_process
       ;;
     4)
-      reset_worker_output
+      validate_sorted_data
       ;;
     5)
+      reset_worker_output
+      ;;
+    6)
       while true; do
         aux_menu
         read -p "Select an option in Developer Menu: " aux_choice

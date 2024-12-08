@@ -23,6 +23,7 @@ for((i=0; i < COUNT; i+=1)); do
       export PATH=\$(dirname \$JAVA_PATH):\$PATH && \
       cd ~/332project && \
       nohup \$SBT_PATH \
+        -J-Xmx14G -J-Xms14G -J-XX:+UseG1GC \
         \"runMain worker.Main $MASTER_IP:$MASTER_PORT -I $INPUT_PATH -O /home/blue/output/\" \
         > worker_ssh.log 2>&1 & \
       echo 'Worker started successfully on $worker_ip.'
