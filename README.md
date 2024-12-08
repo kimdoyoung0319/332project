@@ -45,6 +45,8 @@ git clone https://github.com/kimdoyoung0319/332project.git
     
     Select an option: 1
 
+Output Results Example
+
     Checking status of Worker $ip...
     Worker $ip is reachable.
     ~~~
@@ -53,6 +55,8 @@ git clone https://github.com/kimdoyoung0319/332project.git
 (2)를 실행한다. worker machine에 "\~/project332"와 "\~/output"이 생성되고, 실행을 위한 초기 환경이 구성된다. 
 
     Select an option: 2 
+
+Output Results Example
 
     Starting Git repository reset and output directory setup on all workers...
     Resetting Git repository and output directory on $WORKER_IP...
@@ -65,10 +69,10 @@ git clone https://github.com/kimdoyoung0319/332project.git
 이 때 Shell에서 2개의 인자를 입력받는다. 
 - 첫번째 인자는 사용한 Worker개수, 두번째 인자는 input_data의 **절대경로**를 넣어주어야 한다. 
   - First argument(count) : **10** 으로 고정
-  - Second argument(inputPath) : {Test_input_direcory_Absolute_Path}
+  - Second argument(inputPath) : {input_data_direcory_path}
 
 만약 10보다 작은 값 n을 넣게 되면 worker machine은 2.2.2.101~2.2.2.10n 에 해당하는 n개의 머신을 기준으로 동작한다. 
-이어지는 테스트 예시에서 Input Path는 /home/blue/dataset/{small, big, large}라고 가정한다. 
+이어지는 테스트 예시에서 Input Path는 Worker Machine에 대한 경로이다. 이 예시에선 /home/blue/dataset/{small, big, large}라고 가정한다. 
 
 inputPath가 주어지면, Master의 함수 내부에서 자체적으로 shell script를 통해 각 Worker 머신을 ssh 명령어로 실행한다. 
  
@@ -76,6 +80,9 @@ inputPath가 주어지면, Master의 함수 내부에서 자체적으로 shell s
 
     Enter the number of worker machines to operate (1-10): 10 
     Enter the input path (absolute path required): /home/blue/dataset/big
+
+Output Results Example
+
     Starting Master process with 10 workers and input path /home/blue/dataset/big...
     
     ~~~
@@ -104,6 +111,8 @@ Menu의 (4)번을 실행하면, 각 Worker들이 정렬 과정에서 Master Mach
 
     Select an option: 4
 
+Output Results Example
+
     Starting validation process for all workers...
     
     Processing worker ID: 0 with IP: 2.2.2.101
@@ -131,9 +140,8 @@ Menu에서 (5)를 실행하면 각 Worker머신의 ouput 디렉토리를 초기�
     ==============================================
     Select an option: 5
 
-.
+Output Results Example
 
-    [Result Example]
     Resetting ~/output directory on all workers...
     Processing worker: 2.2.2.101
     Worker 2.2.2.101: ~/output directory reset completed.
