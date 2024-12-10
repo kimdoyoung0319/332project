@@ -192,9 +192,10 @@ Master 머신을 실행한 이후에, 인자로 넘긴 n개의 워커에 각각 
 
 #### 1. 프로젝트 디렉토리 이동
 프로젝트를 설치하는 과정은 Master Machine과 동일하다. 
-Git clone 이후 해당 프로젝트 디렉토리로 이동한다.
+Git clone 이후, Home위치에 output 폴더를 생성(e.g. "/home/blue/output")하고, 해당 프로젝트 디렉토리로 이동한다.
  
     git clone https://github.com/kimdoyoung0319/332project.git
+    mkdir output
     cd /home/blue/332project/
 
 #### 2. sbt 실행
